@@ -1,25 +1,36 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { catchError, throwError } from 'rxjs';
+import { catchError, defer, finalize, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../auth/auth.service';
+import { LoadingService } from '../services/loading.service';
+
+/** Background refreshes that must not trigger the loading spinner. */
+const QUIET_URLS = ['/ai/queue', '/ai/status', '/automations/notifications'];
 
 /** Adds credentials (cookie on web, Bearer on Android) and reacts to expired sessions. */
 export const apiInterceptor: HttpInterceptorFn = (req, next) => {
   if (!req.url.startsWith(environment.apiUrl)) return next(req);
   const auth = inject(AuthService);
+  const loading = inject(LoadingService);
+  const quiet = QUIET_URLS.some((u) => req.url.includes(u));
   let headers = req.headers;
   if (auth.isNative) {
     headers = headers.set('X-Client', 'native');
     if (auth.token) headers = headers.set('Authorization', `Bearer ${auth.token}`);
   }
   const isAuthCall = req.url.includes('/auth/login') || req.url.includes('/auth/register') || req.url.includes('/auth/google');
-  return next(req.clone({ headers, withCredentials: true })).pipe(
-    catchError((e: unknown) => {
-      if (e instanceof HttpErrorResponse && e.status === 401 && !isAuthCall && !req.url.endsWith('/auth/me')) {
-        void auth.handleUnauthorized();
-      }
-      return throwError(() => e);
-    }),
-  );
+  // count the request while it is in flight (starts on subscribe, ends on complete/error/cancel)
+  return defer(() => {
+    if (!quiet) loading.begin();
+    return next(req.clone({ headers, withCredentials: true })).pipe(
+      catchError((e: unknown) => {
+        if (e instanceof HttpErrorResponse && e.status === 401 && !isAuthCall && !req.url.endsWith('/auth/me')) {
+          void auth.handleUnauthorized();
+        }
+        return throwError(() => e);
+      }),
+      finalize(() => { if (!quiet) loading.end(); }),
+    );
+  });
 };

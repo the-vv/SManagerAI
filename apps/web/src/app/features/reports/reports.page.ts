@@ -11,12 +11,14 @@ import { DotComponent, EmptyStateComponent, ErrorStateComponent, PageHeaderCompo
 import { Report } from '../../shared/models/api.models';
 import { accountTypeLabel, frequencyLabel } from '../../shared/models/constants';
 import { MoneyPipe, PercentBpPipe, SmDatePipe } from '../../shared/pipes/format.pipes';
+import { SelectComponent } from '../../shared/components/select.component';
+import { DateInputComponent } from '../../shared/components/date-input.component';
 
 type Preset = 'this-month' | '3m' | '6m' | '12m' | 'ytd' | 'custom';
 
 @Component({
   selector: 'sm-reports-page',
-  imports: [PageHeaderComponent, ChartComponent, EmptyStateComponent, ErrorStateComponent, SkeletonComponent, DotComponent, MoneyPipe, SmDatePipe, PercentBpPipe, TuiIcon],
+  imports: [PageHeaderComponent, ChartComponent, EmptyStateComponent, ErrorStateComponent, SkeletonComponent, DotComponent, MoneyPipe, SmDatePipe, PercentBpPipe, TuiIcon, SelectComponent, DateInputComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <sm-page-header title="Reports" subtitle="Every figure comes from the same ledger calculations as the dashboard." />
@@ -24,9 +26,7 @@ type Preset = 'this-month' | '3m' | '6m' | '12m' | 'ytd' | 'custom';
     <section class="card mb-4 flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-center" aria-label="Report filters">
       <!-- phones: dropdown; wider screens: segmented control -->
       <label class="flex flex-col gap-1 sm:hidden"><span class="field-label">Period</span>
-        <select class="input" [value]="preset()" (change)="setPreset($any($event.target).value)">
-          @for (p of presets; track p.id) { <option [value]="p.id" [selected]="preset() === p.id">{{ p.label }}</option> }
-        </select></label>
+        <sm-select [options]="presetOpts()" [value]="preset()" (valueChange)="setPreset($event ?? 'this-month')" /></label>
       <div class="seg hidden sm:inline-flex" role="group" aria-label="Period">
         @for (p of presets; track p.id) {
           <button type="button" class="whitespace-nowrap" [attr.aria-pressed]="preset() === p.id" (click)="setPreset(p.id)">{{ p.label }}</button>
@@ -34,16 +34,13 @@ type Preset = 'this-month' | '3m' | '6m' | '12m' | 'ytd' | 'custom';
       </div>
       @if (preset() === 'custom') {
         <div class="flex min-w-0 items-center gap-2">
-          <input type="date" class="input !min-h-10 min-w-0 flex-1 sm:!w-auto sm:flex-none" aria-label="From" [value]="from()" (change)="from.set($any($event.target).value)" />
+          <sm-date class="min-w-0 flex-1 sm:w-44 sm:flex-none" ariaLabel="From" [value]="from()" (valueChange)="from.set($event)" />
           <span class="text-muted">→</span>
-          <input type="date" class="input !min-h-10 min-w-0 flex-1 sm:!w-auto sm:flex-none" aria-label="To" [value]="to()" (change)="to.set($any($event.target).value)" />
+          <sm-date class="min-w-0 flex-1 sm:w-44 sm:flex-none" ariaLabel="To" [value]="to()" (valueChange)="to.set($event)" />
         </div>
       }
       <label class="flex flex-col gap-1 sm:ml-auto sm:block"><span class="field-label sm:sr-only">Account</span>
-        <select class="input sm:!min-h-10 sm:!w-auto" [value]="accountId()" (change)="accountId.set($any($event.target).value)">
-          <option value="" [selected]="!accountId()">All accounts</option>
-          @for (a of ref.accounts(); track a.id) { <option [value]="a.id" [selected]="accountId() === a.id">{{ a.name }}</option> }
-        </select></label>
+        <sm-select class="sm:w-56" [options]="accountOpts()" [value]="accountId()" (valueChange)="accountId.set($event ?? '')" /></label>
     </section>
 
     @if (error()) {
@@ -178,6 +175,8 @@ export class ReportsPage {
   private readonly settings = inject(SettingsStore);
   private readonly toast = inject(Toast);
 
+  protected readonly presetOpts = computed(() => this.presets.map((p) => ({ value: p.id, label: p.label })));
+  protected readonly accountOpts = computed(() => [{ value: '', label: 'All accounts' }, ...this.ref.accounts().map((a) => ({ value: a.id, label: a.name }))]);
   protected readonly presets: Array<{ id: Preset; label: string }> = [
     { id: 'this-month', label: 'This month' }, { id: '3m', label: '3 months' }, { id: '6m', label: '6 months' },
     { id: '12m', label: '12 months' }, { id: 'ytd', label: 'Year to date' }, { id: 'custom', label: 'Custom' },

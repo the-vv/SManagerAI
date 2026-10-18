@@ -13,10 +13,11 @@ import { SessionInfo, Settings } from '../../shared/models/api.models';
 import { CURRENCIES, LOCALES, TIMEZONES } from '../../shared/models/constants';
 import { SmDatePipe } from '../../shared/pipes/format.pipes';
 import { AccountsApi } from '../accounts/accounts.api';
+import { SelectComponent } from '../../shared/components/select.component';
 
 @Component({
   selector: 'sm-settings-page',
-  imports: [PageHeaderComponent, ReactiveFormsModule, TuiSwitch, SmDatePipe, RouterLink],
+  imports: [PageHeaderComponent, ReactiveFormsModule, TuiSwitch, SmDatePipe, RouterLink, SelectComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <sm-page-header title="Settings" />
@@ -35,47 +36,35 @@ import { AccountsApi } from '../accounts/accounts.api';
         <div class="grid gap-3 sm:grid-cols-2">
           <div>
             <label class="field-label" for="s-acc">Default account</label>
-            <select id="s-acc" class="input" [value]="defaultId()" (change)="setDefault($any($event.target).value)">
-              @for (a of ref.activeAccounts(); track a.id) { <option [value]="a.id">{{ a.name }}</option> }
-            </select>
+            <sm-select inputId="s-acc" [options]="accountOpts()" [value]="defaultId()" (valueChange)="setDefault($event ?? '')" />
           </div>
           <div>
             <label class="field-label" for="s-cur">Currency</label>
-            <select id="s-cur" class="input" formControlName="currency">
-              @for (c of currencies; track c.value) { <option [value]="c.value">{{ c.label }}</option> }
-            </select>
+            <sm-select inputId="s-cur" formControlName="currency" [options]="currencies" />
           </div>
           <div>
             <label class="field-label" for="s-loc">Number format</label>
-            <select id="s-loc" class="input" formControlName="locale">
-              @for (l of locales; track l.value) { <option [value]="l.value">{{ l.label }}</option> }
-            </select>
+            <sm-select inputId="s-loc" formControlName="locale" [options]="locales" />
           </div>
           <div>
             <label class="field-label" for="s-tz">Timezone</label>
-            <select id="s-tz" class="input" formControlName="timezone">
-              @for (t of timezoneList(); track t) { <option [value]="t">{{ t }}</option> }
-            </select>
+            <sm-select inputId="s-tz" formControlName="timezone" [options]="tzOpts()" />
           </div>
           <div>
             <label class="field-label" for="s-df">Date format</label>
-            <select id="s-df" class="input" formControlName="dateFormat">
-              @for (f of dateFormats; track f) { <option [value]="f">{{ sample(f) }}</option> }
-            </select>
+            <sm-select inputId="s-df" formControlName="dateFormat" [options]="dfOpts()" />
           </div>
           <div>
             <label class="field-label" for="s-tf">Time format</label>
-            <select id="s-tf" class="input" formControlName="timeFormat">
-              <option value="12h">12-hour (3:30 PM)</option><option value="24h">24-hour (15:30)</option>
-            </select>
+            <sm-select inputId="s-tf" formControlName="timeFormat" [options]="timeFormatOpts" />
           </div>
           <div>
             <label class="field-label" for="s-kind">New transaction defaults to</label>
-            <select id="s-kind" class="input" formControlName="defaultTxKind"><option value="EXPENSE">Expense</option><option value="INCOME">Income</option></select>
+            <sm-select inputId="s-kind" formControlName="defaultTxKind" [options]="kindOpts" />
           </div>
           <div>
             <label class="field-label" for="s-mode">New automations default to</label>
-            <select id="s-mode" class="input" formControlName="defaultAutomationMode"><option value="REMINDER">Remind me</option><option value="AUTO">Record automatically</option></select>
+            <sm-select inputId="s-mode" formControlName="defaultAutomationMode" [options]="modeOpts" />
           </div>
           <div>
             <label class="field-label" for="s-rem">Heads-up reminder (days before due)</label>
@@ -95,8 +84,6 @@ import { AccountsApi } from '../accounts/accounts.api';
         <h2 class="m-0 mb-2 text-base font-semibold">Export &amp; backup</h2>
         <p class="m-0 text-sm text-muted">
           Export transactions or any report to CSV from the <a routerLink="/transactions">Transactions</a> and <a routerLink="/reports">Reports</a> pages.
-          Your complete data lives in one SQLite file on your server. Back it up with the provided script
-          (<code>deploy/backup.sh</code>) – see <code>docs/DEPLOYMENT.md</code> for scheduled backups and restore steps.
         </p>
       </section>
 
@@ -132,6 +119,12 @@ import { AccountsApi } from '../accounts/accounts.api';
   `,
 })
 export class SettingsPage {
+  protected readonly accountOpts = computed(() => this.ref.activeAccounts().map((a) => ({ value: a.id, label: a.name })));
+  protected readonly tzOpts = computed(() => this.timezoneList().map((t) => ({ value: t, label: t })));
+  protected readonly dfOpts = computed(() => DATE_FORMATS.map((f) => ({ value: f, label: this.sample(f) })));
+  protected readonly timeFormatOpts = [{ value: '12h' as const, label: '12-hour (3:30 PM)' }, { value: '24h' as const, label: '24-hour (15:30)' }];
+  protected readonly kindOpts = [{ value: 'EXPENSE' as const, label: 'Expense' }, { value: 'INCOME' as const, label: 'Income' }];
+  protected readonly modeOpts = [{ value: 'REMINDER' as const, label: 'Remind me' }, { value: 'AUTO' as const, label: 'Record automatically' }];
   protected readonly ref = inject(RefData);
   protected readonly auth = inject(AuthService);
   private readonly store = inject(SettingsStore);

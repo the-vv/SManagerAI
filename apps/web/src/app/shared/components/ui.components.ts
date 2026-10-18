@@ -6,12 +6,11 @@ import { TuiIcon } from '@taiga-ui/core';
   selector: 'sm-page-header',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <header class="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div class="min-w-0">
-        <h1 class="m-0 text-2xl font-semibold tracking-tight">{{ title() }}</h1>
-        @if (subtitle()) { <p class="m-0 mt-1 text-sm text-muted">{{ subtitle() }}</p> }
-      </div>
-      <div class="flex flex-wrap items-center gap-2"><ng-content /></div>
+    <!-- title + actions share one row on every width; the subtitle sits underneath -->
+    <header class="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1">
+      <h1 class="m-0 min-w-0 truncate text-2xl font-semibold tracking-tight">{{ title() }}</h1>
+      <div class="flex items-center justify-end gap-2 empty:hidden"><ng-content /></div>
+      @if (subtitle()) { <p class="m-0 col-span-2 text-sm text-muted">{{ subtitle() }}</p> }
     </header>
   `,
 })

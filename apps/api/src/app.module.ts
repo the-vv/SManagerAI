@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { RateLimitGuard } from './common/rate-limit.js';
+import { AiModule } from './ai/ai.module.js';
 import { AccountsModule } from './accounts/accounts.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { AutomationsModule } from './automations/automations.module.js';
@@ -31,7 +32,7 @@ class ConfigModule {}
     ScheduleModule.forRoot(),
     DatabaseModule, LedgerModule, SettingsModule, UsersModule, AuthModule,
     AccountsModule, CategoriesModule, TransactionsModule, TransfersModule,
-    AutomationsModule, ReportsModule, DashboardModule,
+    AutomationsModule, ReportsModule, DashboardModule, AiModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: RateLimitGuard }],

@@ -40,7 +40,7 @@ export interface Category {
 
 export interface Transaction {
   id: string; kind: TransactionKind; amount: number; title: string; notes: string | null;
-  occurredAt: string; source: TransactionSource; automationId: string | null;
+  occurredAt: string; source: TransactionSource; automationId: string | null; aiGenerated: boolean;
   account: { id: string; name: string; color: string | null };
   category: { id: string; name: string; color: string | null; icon: string | null } | null;
   transfer: { id: string; fromAccountId: string; toAccountId: string; fromAccountName: string; toAccountName: string } | null;

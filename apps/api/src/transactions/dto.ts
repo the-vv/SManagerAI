@@ -35,6 +35,8 @@ export class CreateTransactionDto {
   @IsOptional() @IsISO8601() occurredAt?: string;
   @IsOptional() @Transform(trim) @IsString() @MaxLength(1000) notes?: string;
   @IsOptional() @ValidateNested() @Type(() => InlineAutomationDto) automation?: InlineAutomationDto;
+  /** AI Smart Entry job this transaction is saved from. A retried save returns the first result instead of duplicating. */
+  @IsOptional() @IsString() @MaxLength(64) aiJobId?: string;
 }
 
 export class UpdateTransactionDto {
@@ -72,6 +74,8 @@ export class ExportQuery {
   @IsOptional() @IsString() categoryId?: string;
   @IsOptional() @IsIn(['MANUAL', 'AUTOMATION']) origin?: 'MANUAL' | 'AUTOMATION';
   @IsOptional() @Transform(trim) @IsString() @MaxLength(100) q?: string;
+  @IsOptional() @IsIn(['date', 'amount', 'title']) sort?: 'date' | 'amount' | 'title';
+  @IsOptional() @IsIn(['asc', 'desc']) dir?: 'asc' | 'desc';
 }
 
 export class CreateTransferDto {

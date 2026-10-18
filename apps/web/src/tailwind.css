@@ -87,7 +87,7 @@
 html, body { height: 100%; }
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--page, var(--bg));
   color: var(--text);
   font-family: var(--font-sans);
   font-feature-settings: 'cv11', 'ss01';
@@ -99,7 +99,30 @@ body {
 /* Taiga reads --tui-background-base etc.; line the page and Taiga up */
 :root, :root[data-theme='light'] { --tui-font-text: var(--font-sans); --tui-font-heading: var(--font-sans); }
 tui-root { background: transparent; }
-[tuiTheme='dark'] { --tui-background-base: var(--surface); --tui-background-elevation-1: var(--bg); --tui-background-elevation-2: var(--surface-2); }
+/* Map Taiga's design tokens onto the app palette so every Taiga control, dropdown, calendar and dialog
+   matches (and follows the light/dark switch). Doubled-up selectors outrank Taiga's own theme rules. */
+html:root, html:root tui-root, html [tuiTheme] {
+  --page: color-mix(in srgb, var(--bg) 62%, var(--surface)); /* page: a touch darker than the cards */
+  --tui-background-base: var(--page);
+  --tui-background-base-alt: var(--surface);
+  --tui-background-neutral-1: var(--surface-2);
+  --tui-background-neutral-1-hover: var(--border);
+  --tui-background-neutral-2: var(--border);
+  --tui-background-elevation-1: var(--bg);
+  --tui-background-elevation-2: var(--surface);   /* dropdowns, calendars, dialogs */
+  --tui-background-elevation-3: var(--surface-2);
+  --tui-background-accent-1: var(--accent);
+  --tui-background-accent-1-hover: var(--accent-strong);
+  --tui-border-normal: var(--border);
+  --tui-border-hover: var(--border-strong);
+  --tui-text-primary: var(--text);
+  --tui-text-secondary: var(--text-muted);
+  --tui-text-tertiary: var(--text-faint);
+  --tui-text-action: var(--accent);
+  --tui-radius-m: 12px;
+}
+/* Fields use the same surface as the app's .input fields (only inside the field, so the page is unaffected) */
+tui-textfield { --tui-background-base: var(--surface-2); --t-shadow: none; box-shadow: none; }
 
 @layer components {
   .card {
@@ -167,6 +190,7 @@ tui-root { background: transparent; }
   }
   .btn-primary:hover { background: var(--accent-strong); border-color: transparent; }
   .btn-danger { background: var(--expense-soft); border-color: transparent; color: var(--expense); }
+  .link-btn { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-decoration: underline; }
   .btn-sm { min-height: 36px; padding: 0 .8rem; font-size: .8rem; border-radius: 10px; }
   /* Save/Cancel row of modal forms: stays visible at the bottom while the form scrolls. */
   .dialog-actions {

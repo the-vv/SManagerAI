@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { tuiDialog } from '@taiga-ui/core';
 import { firstValueFrom } from 'rxjs';
+import { ApiClient } from '../api/api.client';
 import { AccountFormDialog } from '../../features/accounts/account-form.dialog';
 import { AdjustDialog, TransferDialog } from '../../features/accounts/adjust-transfer.dialogs';
 import { AutomationFormDialog } from '../../features/automations/automation-form.dialog';
@@ -13,6 +14,7 @@ import { RefData } from './ref-data.store';
 @Injectable({ providedIn: 'root' })
 export class Dialogs {
   private readonly ref = inject(RefData);
+  private readonly api = inject(ApiClient);
   private readonly txDialog = tuiDialog(TransactionFormDialog, { size: 'm', closable: true, dismissible: true });
   private readonly accountDialog = tuiDialog(AccountFormDialog, { size: 'm', closable: true, dismissible: true });
   private readonly adjustDialog = tuiDialog(AdjustDialog, { size: 's', closable: true, dismissible: true });
@@ -34,6 +36,10 @@ export class Dialogs {
     return this.run(firstValueFrom(this.txDialog(data), { defaultValue: false }), () => this.refreshAll());
   }
   editTransaction(transaction: Transaction): Promise<boolean> { return this.transaction({ transaction }); }
+  async editTransactionById(id: string): Promise<boolean> {
+    const transaction = await firstValueFrom(this.api.get<Transaction>(`/transactions/${id}`), { defaultValue: undefined });
+    return transaction ? this.editTransaction(transaction) : false;
+  }
 
   account(account?: Account): Promise<boolean> {
     return this.run(firstValueFrom(this.accountDialog(account), { defaultValue: false }), () => this.refreshAll());

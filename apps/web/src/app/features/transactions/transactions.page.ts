@@ -12,12 +12,14 @@ import { MoneyPipe } from '../../shared/pipes/format.pipes';
 import { ConfirmService } from '../../shared/components/confirm.service';
 import { TransactionListComponent } from './transaction-list.component';
 import { TransactionsApi, TxQuery } from './transactions.api';
+import { SelectComponent } from '../../shared/components/select.component';
+import { DateInputComponent } from '../../shared/components/date-input.component';
 
 type KindFilter = '' | 'INCOME' | 'EXPENSE' | 'TRANSFER';
 
 @Component({
   selector: 'sm-transactions-page',
-  imports: [PageHeaderComponent, MonthNavComponent, TransactionListComponent, EmptyStateComponent, ErrorStateComponent, SkeletonComponent, MoneyPipe, TuiIcon],
+  imports: [PageHeaderComponent, MonthNavComponent, TransactionListComponent, EmptyStateComponent, ErrorStateComponent, SkeletonComponent, MoneyPipe, TuiIcon, SelectComponent, DateInputComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <sm-page-header title="Transactions" [subtitle]="subtitle()">
@@ -27,7 +29,7 @@ type KindFilter = '' | 'INCOME' | 'EXPENSE' | 'TRANSFER';
       <button type="button" class="btn !px-3" (click)="dialogs.transfer()" [disabled]="ref.activeAccounts().length < 2" aria-label="Transfer between accounts" title="Transfer">
         <tui-icon icon="@tui.arrow-left-right" /><span class="hidden sm:inline">Transfer</span>
       </button>
-      <button type="button" class="btn btn-primary" (click)="add()"><tui-icon icon="@tui.plus" /> Add</button>
+      <button type="button" class="btn btn-primary" (click)="add()" aria-label="Add transaction"><tui-icon icon="@tui.plus" /><span class="hidden min-[400px]:inline">Add</span></button>
     </sm-page-header>
 
     <section class="card mb-4 flex flex-col gap-4 p-4" aria-label="Filters">
@@ -44,14 +46,14 @@ type KindFilter = '' | 'INCOME' | 'EXPENSE' | 'TRANSFER';
       </div>
 
       <!-- period -->
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex items-center gap-2">
         @if (mode() === 'month') {
-          <sm-month-nav [month]="month()" (monthChange)="month.set($event)" />
+          <sm-month-nav class="min-w-0 flex-1 sm:flex-none" [month]="month()" (monthChange)="month.set($event)" />
         } @else {
           <div class="flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
-            <input type="date" class="input !min-h-10 min-w-0 flex-1 sm:!w-auto sm:flex-none" aria-label="From date" [value]="from()" (change)="from.set($any($event.target).value)" />
+            <sm-date class="min-w-0 flex-1 sm:w-44 sm:flex-none" ariaLabel="From date" [value]="from()" (valueChange)="from.set($event)" />
             <span class="text-muted">→</span>
-            <input type="date" class="input !min-h-10 min-w-0 flex-1 sm:!w-auto sm:flex-none" aria-label="To date" [value]="to()" (change)="to.set($any($event.target).value)" />
+            <sm-date class="min-w-0 flex-1 sm:w-44 sm:flex-none" ariaLabel="To date" [value]="to()" (valueChange)="to.set($event)" />
           </div>
         }
         <button type="button" class="btn !px-3" (click)="mode.set(mode() === 'month' ? 'range' : 'month')"
@@ -72,28 +74,13 @@ type KindFilter = '' | 'INCOME' | 'EXPENSE' | 'TRANSFER';
       <!-- advanced (always visible on desktop, collapsible on phones) -->
       <div id="more-filters" [class]="filtersOpen() ? 'grid grid-cols-1 gap-3 sm:grid-cols-2' : 'hidden gap-3 lg:grid lg:grid-cols-4'">
         <label class="flex flex-col gap-1"><span class="field-label">Account</span>
-          <select class="input" [value]="accountId()" (change)="accountId.set($any($event.target).value)">
-            <option value="" [selected]="!accountId()">All accounts</option>
-            @for (a of ref.accounts(); track a.id) { <option [value]="a.id" [selected]="accountId() === a.id">{{ a.name }}</option> }
-          </select></label>
+          <sm-select [options]="accountOpts()" [value]="accountId()" (valueChange)="accountId.set($event ?? '')" /></label>
         <label class="flex flex-col gap-1"><span class="field-label">Category</span>
-          <select class="input" [value]="categoryId()" (change)="categoryId.set($any($event.target).value)">
-            <option value="" [selected]="!categoryId()">All categories</option>
-            <option value="none" [selected]="categoryId() === 'none'">Uncategorized</option>
-            @for (c of ref.categories(); track c.id) { <option [value]="c.id" [selected]="categoryId() === c.id">{{ c.name }}</option> }
-          </select></label>
+          <sm-select [options]="categoryOpts()" [value]="categoryId()" (valueChange)="categoryId.set($event ?? '')" /></label>
         <label class="flex flex-col gap-1"><span class="field-label">Origin</span>
-          <select class="input" [value]="origin()" (change)="origin.set($any($event.target).value)">
-            <option value="">Manual &amp; automatic</option>
-            <option value="MANUAL">Manual only</option>
-            <option value="AUTOMATION">Automation only</option>
-          </select></label>
+          <sm-select [options]="originOpts" [value]="origin()" (valueChange)="origin.set($event ?? '')" /></label>
         <label class="flex flex-col gap-1"><span class="field-label">Sort by</span>
-          <select class="input" [value]="sort()" (change)="sort.set($any($event.target).value)">
-            <option value="date:desc">Newest first</option><option value="date:asc">Oldest first</option>
-            <option value="amount:desc">Largest amount</option><option value="amount:asc">Smallest amount</option>
-            <option value="title:asc">Title A–Z</option>
-          </select></label>
+          <sm-select [options]="sortOpts" [value]="sort()" (valueChange)="sort.set($event ?? 'date:desc')" /></label>
       </div>
       @if (hasFilters()) {
         <div class="-mt-1 flex justify-end"><button type="button" class="btn btn-sm" (click)="clear()"><tui-icon icon="@tui.funnel-x" /> Clear filters</button></div>
@@ -132,9 +119,7 @@ type KindFilter = '' | 'INCOME' | 'EXPENSE' | 'TRANSFER';
           <nav class="flex flex-wrap items-center justify-between gap-2 border-t border-line p-3 text-sm text-muted" aria-label="Pagination">
             <span>{{ rangeLabel() }}</span>
             <span class="flex items-center gap-2">
-              <select class="input !min-h-9 !w-auto !text-xs" aria-label="Rows per page" [value]="pageSize()" (change)="pageSize.set(+$any($event.target).value)">
-                <option value="25">25</option><option value="50">50</option><option value="100">100</option>
-              </select>
+              <sm-select class="w-24" size="s" ariaLabel="Rows per page" [options]="pageSizeOpts" [value]="pageSize()" (valueChange)="pageSize.set($event ?? 50)" />
               <button type="button" class="btn btn-sm" [disabled]="pageNo() <= 1" (click)="pageNo.set(pageNo() - 1)" aria-label="Previous page"><tui-icon icon="@tui.chevron-left" /></button>
               <span class="num">{{ pageNo() }} / {{ pages() }}</span>
               <button type="button" class="btn btn-sm" [disabled]="pageNo() >= pages()" (click)="pageNo.set(pageNo() + 1)" aria-label="Next page"><tui-icon icon="@tui.chevron-right" /></button>
@@ -146,6 +131,17 @@ type KindFilter = '' | 'INCOME' | 'EXPENSE' | 'TRANSFER';
   `,
 })
 export class TransactionsPage {
+  protected readonly accountOpts = computed(() => [{ value: '', label: 'All accounts' }, ...this.ref.accounts().map((a) => ({ value: a.id, label: a.name }))]);
+  protected readonly categoryOpts = computed(() => [
+    { value: '', label: 'All categories' }, { value: 'none', label: 'Uncategorized' },
+    ...this.ref.categories().map((c) => ({ value: c.id, label: c.type === 'INCOME' ? `${c.name} (income)` : c.name })),
+  ]);
+  protected readonly originOpts = [{ value: '', label: 'Manual & automatic' }, { value: 'MANUAL', label: 'Manual only' }, { value: 'AUTOMATION', label: 'Automation only' }];
+  protected readonly sortOpts = [
+    { value: 'date:desc', label: 'Newest first' }, { value: 'date:asc', label: 'Oldest first' },
+    { value: 'amount:desc', label: 'Largest amount' }, { value: 'amount:asc', label: 'Smallest amount' }, { value: 'title:asc', label: 'Title A–Z' },
+  ];
+  protected readonly pageSizeOpts = [{ value: 25, label: '25' }, { value: 50, label: '50' }, { value: 100, label: '100' }];
   protected readonly ref = inject(RefData);
   protected readonly dialogs = inject(Dialogs);
   private readonly api = inject(TransactionsApi);

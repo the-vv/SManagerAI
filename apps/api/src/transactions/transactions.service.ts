@@ -30,6 +30,8 @@ export function txView(r: Row) {
   return {
     id: r.id, kind: r.kind, amount: num(r.amount), title: r.title, notes: r.notes,
     occurredAt: r.occurredAt, source: r.source, automationId: r.automationId,
+    /** created from (or with the help of) an AI Smart Entry */
+    aiGenerated: r.aiJobId !== null,
     account: r.account, category: r.category,
     transfer: r.transfer
       ? {
@@ -59,11 +61,7 @@ export class TransactionsService {
     if (q.accountId) await this.ledger.resolveScope(ownerId, q.accountId);
     const where = buildTxWhere(ownerId, filter, tz);
     const page = q.page ?? 1, pageSize = q.pageSize ?? 25;
-    const dir = q.dir ?? 'desc';
-    const orderBy: Prisma.TransactionOrderByWithRelationInput[] =
-      q.sort === 'amount' ? [{ amount: dir }, { occurredAt: 'desc' }]
-        : q.sort === 'title' ? [{ title: dir }, { occurredAt: 'desc' }]
-          : [{ occurredAt: dir }, { createdAt: dir }];
+    const orderBy = this.orderBy(q);
 
     const [rows, total, summary] = await Promise.all([
       this.prisma.transaction.findMany({ where, include: INCLUDE, orderBy, skip: (page - 1) * pageSize, take: pageSize }),
@@ -75,6 +73,14 @@ export class TransactionsService {
       items: rows.map(txView), total, page, pageSize,
       summary: this.summaryView(summary), dailyTotals,
     } satisfies Page<TransactionView> & Record<string, unknown>;
+  }
+
+  /** Same ordering for the list and the CSV export, so an export matches what is on screen. */
+  private orderBy(q: { sort?: 'date' | 'amount' | 'title'; dir?: 'asc' | 'desc' }): Prisma.TransactionOrderByWithRelationInput[] {
+    const dir = q.dir ?? 'desc';
+    return q.sort === 'amount' ? [{ amount: dir }, { occurredAt: 'desc' }]
+      : q.sort === 'title' ? [{ title: dir }, { occurredAt: 'desc' }]
+        : [{ occurredAt: dir }, { createdAt: dir }];
   }
 
   private summaryView(t: Totals) {
@@ -109,23 +115,45 @@ export class TransactionsService {
   }
 
   async create(ownerId: string, dto: CreateTransactionDto) {
+    if (dto.aiJobId) {
+      const done = await this.prisma.transaction.findFirst({ where: { aiJobId: dto.aiJobId, ownerId }, select: { id: true } });
+      if (done) return this.get(ownerId, done.id); // idempotent retry of the same AI save
+      const job = await this.prisma.aiJob.findFirst({ where: { id: dto.aiJobId, userId: ownerId, status: 'COMPLETED' }, select: { id: true } });
+      if (!job) throw new BadRequestException('This AI suggestion is no longer available. Please add the transaction again.');
+    }
     const settings = await this.settings.get(ownerId);
     const occurredAt = dto.occurredAt ? new Date(dto.occurredAt) : new Date();
     const accountId = dto.accountId ?? (await this.defaultAccountId(ownerId));
-    const id = await this.prisma.$transaction(async (tx) => {
-      const row = await this.writer.record(tx, ownerId, {
-        accountId, categoryId: dto.categoryId, kind: dto.kind, amount: dto.amount,
-        title: dto.title, notes: dto.notes, occurredAt,
-      });
-      if (dto.automation) {
-        await this.automations.createFromTransaction(tx, ownerId, row, dto.automation, {
-          timezone: settings.timezone, defaultMode: settings.defaultAutomationMode,
-          reminderDaysBefore: settings.reminderDaysBefore,
-        });
-      }
-      return row.id;
-    });
+    const id = await this.createRow(ownerId, dto, accountId, occurredAt, settings);
     return this.get(ownerId, id);
+  }
+
+  private async createRow(
+    ownerId: string, dto: CreateTransactionDto, accountId: string, occurredAt: Date,
+    settings: Awaited<ReturnType<SettingsService['get']>>,
+  ): Promise<string> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const row = await this.writer.record(tx, ownerId, {
+          accountId, categoryId: dto.categoryId, kind: dto.kind, amount: dto.amount,
+          title: dto.title, notes: dto.notes, occurredAt, aiJobId: dto.aiJobId,
+        });
+        if (dto.automation) {
+          await this.automations.createFromTransaction(tx, ownerId, row, dto.automation, {
+            timezone: settings.timezone, defaultMode: settings.defaultAutomationMode,
+            reminderDaysBefore: settings.reminderDaysBefore,
+          });
+        }
+        return row.id;
+      });
+    } catch (e) {
+      // two parallel saves of the same AI suggestion: the unique aiJobId lets only one win
+      if (dto.aiJobId && (e as { code?: string }).code === 'P2002') {
+        const done = await this.prisma.transaction.findFirst({ where: { aiJobId: dto.aiJobId, ownerId }, select: { id: true } });
+        if (done) return done.id;
+      }
+      throw e;
+    }
   }
 
   private async defaultAccountId(ownerId: string): Promise<string> {
@@ -177,7 +205,7 @@ export class TransactionsService {
     if (q.accountId) await this.ledger.resolveScope(ownerId, q.accountId);
     const where = buildTxWhere(ownerId, q, tz);
     const rows = await this.prisma.transaction.findMany({
-      where, include: INCLUDE, orderBy: [{ occurredAt: 'desc' }, { createdAt: 'desc' }], take: 50_000,
+      where, include: INCLUDE, orderBy: this.orderBy(q), take: 50_000,
     });
     const typeLabel = (r: Row) =>
       r.kind === 'INCOME' ? 'Income' : r.kind === 'EXPENSE' ? 'Expense'

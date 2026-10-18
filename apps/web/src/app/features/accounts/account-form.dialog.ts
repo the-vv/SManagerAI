@@ -11,10 +11,12 @@ import { ColorPickerComponent, IconPickerComponent } from '../../shared/componen
 import { ACCOUNT_TYPES } from '../../shared/models/constants';
 import { Account, AccountType } from '../../shared/models/api.models';
 import { AccountsApi } from './accounts.api';
+import { SelectComponent } from '../../shared/components/select.component';
+import { DateInputComponent } from '../../shared/components/date-input.component';
 
 @Component({
   selector: 'sm-account-form',
-  imports: [ReactiveFormsModule, AmountInputComponent, ColorPickerComponent, IconPickerComponent, TuiSwitch],
+  imports: [ReactiveFormsModule, AmountInputComponent, ColorPickerComponent, IconPickerComponent, TuiSwitch, SelectComponent, DateInputComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <form [formGroup]="form" (ngSubmit)="save()" class="flex flex-col gap-4" novalidate>
@@ -30,9 +32,7 @@ import { AccountsApi } from './accounts.api';
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label class="field-label" for="ac-type">Type</label>
-          <select id="ac-type" class="input" formControlName="type">
-            @for (t of types; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
-          </select>
+          <sm-select inputId="ac-type" formControlName="type" [options]="types" />
         </div>
         <div>
           <label class="field-label" for="ac-inst">Bank / institution</label>
@@ -44,7 +44,7 @@ import { AccountsApi } from './accounts.api';
         </div>
         <div>
           <label class="field-label" for="ac-date">Opening date</label>
-          <input id="ac-date" type="date" class="input" formControlName="openingDate" />
+          <sm-date inputId="ac-date" formControlName="openingDate" />
         </div>
       </div>
 

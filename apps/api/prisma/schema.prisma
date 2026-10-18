@@ -68,6 +68,13 @@ enum AutomationMode {
   REMINDER
 }
 
+enum AiJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 enum ExecutionStatus {
   PENDING
   SUCCESS
@@ -93,6 +100,7 @@ model User {
   adjustments BalanceAdjustment[]
   automations Automation[]
   executions  AutomationExecution[]
+  aiJobs      AiJob[]
 }
 
 model Session {
@@ -208,6 +216,7 @@ model Transaction {
   transferId  String?
   automationId String?
   occurrenceDate String? // 'YYYY-MM-DD' of the automation occurrence that produced it
+  aiJobId     String?           @unique // AI Smart Entry job this was saved from; makes a retried save idempotent
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
@@ -295,4 +304,32 @@ model AutomationExecution {
   @@unique([automationId, scheduledFor])
   @@index([ownerId, status])
   @@index([automationId, scheduledFor])
+}
+
+// Persistent queue for AI (Ollama) work. Single-instance: a scheduler claims PENDING rows in
+// batches (claimToken marks a claim, leaseExpiresAt lets abandoned PROCESSING rows be recovered).
+// `result` is JSON text (SQLite) and is only ever read by the owning user.
+model AiJob {
+  id             String      @id @default(cuid())
+  userId         String
+  jobType        String      @default("TRANSACTION_CLASSIFY")
+  inputText      String
+  status         AiJobStatus @default(PENDING)
+  result         String?
+  errorMessage   String? // safe, user-facing text only
+  retryCount     Int         @default(0)
+  claimToken     String?
+  leaseExpiresAt DateTime?
+  createdAt      DateTime    @default(now())
+  startedAt      DateTime?
+  completedAt    DateTime?
+  nextRetryAt    DateTime?
+  dismissedAt    DateTime? // hidden from the user's AI queue list
+  accountId      String? // account chosen at submit time; null = the user's default account
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextRetryAt, createdAt])
+  @@index([status, leaseExpiresAt])
+  @@index([userId, createdAt])
 }

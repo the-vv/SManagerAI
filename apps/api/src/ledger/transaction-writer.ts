@@ -14,6 +14,7 @@ export interface NewTransaction {
   source?: TransactionSource;
   automationId?: string;
   occurrenceDate?: string;
+  aiJobId?: string;
 }
 
 const MIN_DATE = new Date('1990-01-01T00:00:00Z');
@@ -54,7 +55,7 @@ export class TransactionWriter {
         ownerId, accountId: n.accountId, categoryId: n.categoryId ?? null,
         kind: n.kind as TransactionKind, amount: big(n.amount), title: n.title.trim(),
         notes: n.notes || null, occurredAt: n.occurredAt, source: n.source ?? 'MANUAL',
-        automationId: n.automationId ?? null, occurrenceDate: n.occurrenceDate ?? null,
+        automationId: n.automationId ?? null, occurrenceDate: n.occurrenceDate ?? null, aiJobId: n.aiJobId ?? null,
       },
     });
   }

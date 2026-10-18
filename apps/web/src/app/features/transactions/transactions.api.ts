@@ -10,7 +10,7 @@ export interface TxQuery extends Query {
 
 export interface TxInput {
   title: string; amount: number; kind: 'INCOME' | 'EXPENSE'; categoryId?: string | null; accountId?: string;
-  occurredAt?: string; notes?: string | null;
+  occurredAt?: string; notes?: string | null; aiJobId?: string;
   automation?: { frequency: Frequency; customEvery?: number; customUnit?: IntervalUnit; endDate?: string; mode?: AutomationMode };
 }
 

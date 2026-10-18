@@ -12,10 +12,11 @@ import { accountTypeIcon, accountTypeLabel } from '../../shared/models/constants
 import { MoneyPipe } from '../../shared/pipes/format.pipes';
 import { AccountsApi } from './accounts.api';
 import { AccountsOverview } from '../../shared/models/api.models';
+import { DateInputComponent } from '../../shared/components/date-input.component';
 
 @Component({
   selector: 'sm-accounts-page',
-  imports: [PageHeaderComponent, EmptyStateComponent, SkeletonComponent, TuiIcon, MoneyPipe, RouterLink],
+  imports: [PageHeaderComponent, EmptyStateComponent, SkeletonComponent, TuiIcon, MoneyPipe, RouterLink, DateInputComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <sm-page-header title="Accounts" subtitle="Balances are derived from opening balance, transactions, transfers and adjustments.">
@@ -37,7 +38,7 @@ import { AccountsOverview } from '../../shared/models/api.models';
       <div class="mb-3 flex flex-wrap items-center gap-3">
         <label class="field-label flex items-center gap-2">
           Balances as of
-          <input type="date" class="input !min-h-9 !w-auto" [value]="asOf() ?? today" [max]="today" (change)="setDate($any($event.target).value)" />
+          <sm-date class="w-44" size="s" ariaLabel="Balances as of" [value]="asOf() ?? today" [max]="today" (valueChange)="setDate($event)" />
         </label>
         @if (asOf()) { <button type="button" class="btn btn-sm" (click)="asOf.set(null)">Show current</button> }
       </div>

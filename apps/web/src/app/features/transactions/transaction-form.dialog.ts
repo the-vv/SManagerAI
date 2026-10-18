@@ -12,16 +12,21 @@ import { ConfirmService } from '../../shared/components/confirm.service';
 import { FREQUENCIES } from '../../shared/models/constants';
 import { Frequency, Transaction } from '../../shared/models/api.models';
 import { TransactionsApi, TxInput } from './transactions.api';
+import { SelectComponent } from '../../shared/components/select.component';
+import { DateInputComponent } from '../../shared/components/date-input.component';
+import { TimeInputComponent } from '../../shared/components/time-input.component';
 
 export interface TxFormData {
   transaction?: Transaction;
   kind?: 'INCOME' | 'EXPENSE';
   accountId?: string;
+  /** Pre-filled from an AI queue entry; saving links the new transaction to that entry (idempotent). */
+  prefill?: { title: string; amount: number | null; kind?: 'INCOME' | 'EXPENSE'; categoryId: string | null; aiJobId?: string };
 }
 
 @Component({
   selector: 'sm-transaction-form',
-  imports: [ReactiveFormsModule, AmountInputComponent, TuiIcon, TuiSwitch],
+  imports: [ReactiveFormsModule, AmountInputComponent, TuiIcon, TuiSwitch, SelectComponent, DateInputComponent, TimeInputComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <form [formGroup]="form" (ngSubmit)="save()" class="flex flex-col gap-4" novalidate>
@@ -49,24 +54,19 @@ export interface TxFormData {
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label class="field-label" for="tx-cat">Category</label>
-          <select id="tx-cat" class="input" formControlName="categoryId">
-            <option [ngValue]="null">Uncategorized</option>
-            @for (c of categories(); track c.id) { <option [ngValue]="c.id">{{ c.name }}</option> }
-          </select>
+          <sm-select inputId="tx-cat" formControlName="categoryId" [options]="categoryOpts()" />
         </div>
         <div>
           <label class="field-label" for="tx-acc">Account</label>
-          <select id="tx-acc" class="input" formControlName="accountId">
-            @for (a of accounts(); track a.id) { <option [ngValue]="a.id">{{ a.name }}</option> }
-          </select>
+          <sm-select inputId="tx-acc" formControlName="accountId" [options]="accountOpts()" />
         </div>
         <div>
           <label class="field-label" for="tx-date">Date</label>
-          <input id="tx-date" type="date" class="input" formControlName="date" [class.invalid]="submitted() && form.controls.date.invalid" />
+          <sm-date inputId="tx-date" formControlName="date" />
         </div>
         <div>
           <label class="field-label" for="tx-time">Time</label>
-          <input id="tx-time" type="time" class="input" formControlName="time" />
+          <sm-time inputId="tx-time" formControlName="time" />
         </div>
       </div>
 
@@ -85,16 +85,11 @@ export interface TxFormData {
             <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label class="field-label" for="tx-freq">Frequency</label>
-                <select id="tx-freq" class="input" formControlName="frequency">
-                  @for (f of frequencies; track f.value) { @if (f.value !== 'CUSTOM') { <option [value]="f.value">{{ f.label }}</option> } }
-                </select>
+                <sm-select inputId="tx-freq" formControlName="frequency" [options]="freqOpts" />
               </div>
               <div>
                 <label class="field-label" for="tx-mode">When due</label>
-                <select id="tx-mode" class="input" formControlName="mode">
-                  <option value="REMINDER">Remind me to confirm</option>
-                  <option value="AUTO">Record automatically</option>
-                </select>
+                <sm-select inputId="tx-mode" formControlName="mode" [options]="modeOpts" />
               </div>
             </div>
             <p class="m-0 mt-2 text-xs text-muted">
@@ -130,6 +125,9 @@ export class TransactionFormDialog {
   protected readonly busy = signal(false);
   protected readonly submitted = signal(false);
   protected readonly accounts = this.ref.activeAccounts;
+  protected readonly accountOpts = computed(() => this.accounts().map((a) => ({ value: a.id, label: a.name })));
+  protected readonly freqOpts = FREQUENCIES.filter((f) => f.value !== 'CUSTOM');
+  protected readonly modeOpts = [{ value: 'REMINDER' as const, label: 'Remind me to confirm' }, { value: 'AUTO' as const, label: 'Record automatically' }];
 
   protected readonly form = this.fb.group({
     amount: this.fb.control<number | null>(null, [Validators.required, Validators.min(1)]),
@@ -145,6 +143,7 @@ export class TransactionFormDialog {
   });
 
   protected readonly kind = signal<'INCOME' | 'EXPENSE'>(this.context.data?.kind ?? this.settings.settings().defaultTxKind);
+  protected readonly categoryOpts = computed(() => [{ value: null as string | null, label: 'Uncategorized' }, ...this.categories().map((c) => ({ value: c.id as string | null, label: c.name }))]);
   protected readonly categories = computed(() => (this.kind() === 'INCOME' ? this.ref.incomeCategories() : this.ref.expenseCategories()));
 
   constructor() {
@@ -158,10 +157,13 @@ export class TransactionFormDialog {
         date: dateKey(tx.occurredAt, tz), time: timeKey(tx.occurredAt, tz), notes: tx.notes ?? '',
       });
     } else {
+      const pre = this.context.data?.prefill;
       this.form.patchValue({
         accountId: this.context.data?.accountId ?? this.ref.defaultAccount()?.id ?? '',
         date: dateKey(now, tz), time: timeKey(now, tz),
+        ...(pre ? { title: pre.title, amount: pre.amount, categoryId: pre.categoryId } : {}),
       });
+      if (pre?.kind) this.kind.set(pre.kind);
     }
     effect(() => {
       // a category from the other direction is no longer valid when switching Income/Expense
@@ -181,6 +183,7 @@ export class TransactionFormDialog {
       title: v.title.trim(), amount: v.amount!, kind: this.kind(), categoryId: v.categoryId,
       accountId: v.accountId, occurredAt, notes: v.notes.trim() || (this.editing ? null : undefined),
     };
+    if (!this.editing && this.context.data?.prefill?.aiJobId) body.aiJobId = this.context.data.prefill.aiJobId;
     if (!this.editing && v.recurring) body.automation = { frequency: v.frequency, mode: v.mode };
     this.busy.set(true);
     const req = this.editing ? this.api.update(this.context.data!.transaction!.id, body) : this.api.create(body);

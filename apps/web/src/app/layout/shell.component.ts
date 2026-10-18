@@ -34,7 +34,7 @@ const COLLAPSE_KEY = 'sm-sidebar-collapsed';
       [style.width.px]="collapsed() ? 76 : 256" aria-label="Primary">
       <div class="flex h-16 items-center gap-3 px-4">
         <span class="grid size-9 shrink-0 place-items-center rounded-xl bg-accent text-white"><tui-icon icon="@tui.wallet" /></span>
-        @if (!collapsed()) { <span class="text-lg font-semibold tracking-tight">SManager</span> }
+        @if (!collapsed()) { <span class="text-lg font-semibold tracking-tight">SManager</span> <span class="rounded-md bg-accent-soft px-1.5 py-px text-[10px] leading-4 font-bold tracking-wide text-accent" title="AI-powered">AI</span> }
       </div>
       <nav class="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-2">
         @for (n of nav; track n.path) {
@@ -64,6 +64,7 @@ const COLLAPSE_KEY = 'sm-sidebar-collapsed';
         style="padding-top: env(safe-area-inset-top); height: calc(4rem + env(safe-area-inset-top))">
         <span class="grid size-8 place-items-center rounded-lg bg-accent text-white lg:hidden"><tui-icon icon="@tui.wallet" /></span>
         <span class="text-base font-semibold lg:hidden">SManager</span>
+        <span class="lg:hidden rounded-md bg-accent-soft px-1.5 py-px text-[10px] leading-4 font-bold tracking-wide text-accent" title="AI-powered">AI</span>
         <span class="flex-1"></span>
 
         <div class="relative">

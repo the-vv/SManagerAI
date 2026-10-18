@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TuiDialogContext } from '@taiga-ui/core';
 import { injectContext } from '@taiga-ui/polymorpheus';
@@ -10,11 +10,14 @@ import { AmountInputComponent } from '../../shared/components/amount-input.compo
 import { Account } from '../../shared/models/api.models';
 import { TransactionsApi } from '../transactions/transactions.api';
 import { AccountsApi } from './accounts.api';
+import { SelectComponent } from '../../shared/components/select.component';
+import { DateInputComponent } from '../../shared/components/date-input.component';
+import { TimeInputComponent } from '../../shared/components/time-input.component';
 
 /** Manual balance correction ("set the balance to X as of date D, because ...") - stored as an adjustment, never as income/expense. */
 @Component({
   selector: 'sm-adjust-dialog',
-  imports: [ReactiveFormsModule, AmountInputComponent],
+  imports: [ReactiveFormsModule, AmountInputComponent, DateInputComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <form [formGroup]="form" (ngSubmit)="save()" class="flex flex-col gap-4" novalidate>
@@ -31,7 +34,7 @@ import { AccountsApi } from './accounts.api';
       </div>
       <div>
         <label class="field-label" for="adj-date">As of date</label>
-        <input id="adj-date" type="date" class="input" formControlName="date" [max]="today" />
+        <sm-date inputId="adj-date" formControlName="date" [max]="today" />
       </div>
       <div>
         <label class="field-label" for="adj-reason">Reason *</label>
@@ -75,7 +78,7 @@ export class AdjustDialog {
 
 @Component({
   selector: 'sm-transfer-dialog',
-  imports: [ReactiveFormsModule, AmountInputComponent],
+  imports: [ReactiveFormsModule, AmountInputComponent, SelectComponent, DateInputComponent, TimeInputComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <form [formGroup]="form" (ngSubmit)="save()" class="flex flex-col gap-4" novalidate>
@@ -86,15 +89,11 @@ export class AdjustDialog {
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label class="field-label" for="tr-from">From</label>
-          <select id="tr-from" class="input" formControlName="from">
-            @for (a of accounts(); track a.id) { <option [value]="a.id">{{ a.name }}</option> }
-          </select>
+          <sm-select inputId="tr-from" formControlName="from" [options]="accountOpts()" />
         </div>
         <div>
           <label class="field-label" for="tr-to">To</label>
-          <select id="tr-to" class="input" formControlName="to">
-            @for (a of accounts(); track a.id) { <option [value]="a.id">{{ a.name }}</option> }
-          </select>
+          <sm-select inputId="tr-to" formControlName="to" [options]="accountOpts()" />
         </div>
       </div>
       @if (sameAccount()) { <div class="error-text">Choose two different accounts.</div> }
@@ -103,8 +102,8 @@ export class AdjustDialog {
         <sm-amount-input inputId="tr-amt" formControlName="amount" [invalid]="submitted() && form.controls.amount.invalid" />
       </div>
       <div class="grid grid-cols-2 gap-3">
-        <div><label class="field-label" for="tr-date">Date</label><input id="tr-date" type="date" class="input" formControlName="date" /></div>
-        <div><label class="field-label" for="tr-time">Time</label><input id="tr-time" type="time" class="input" formControlName="time" /></div>
+        <div><label class="field-label" for="tr-date">Date</label><sm-date inputId="tr-date" formControlName="date" /></div>
+        <div><label class="field-label" for="tr-time">Time</label><sm-time inputId="tr-time" formControlName="time" /></div>
       </div>
       <div>
         <label class="field-label" for="tr-note">Note</label>
@@ -125,6 +124,7 @@ export class TransferDialog {
   private readonly settings = inject(SettingsStore);
   private readonly toast = inject(Toast);
   protected readonly accounts = this.ref.activeAccounts;
+  protected readonly accountOpts = computed(() => this.accounts().map((a) => ({ value: a.id, label: a.name })));
   protected readonly busy = signal(false);
   protected readonly submitted = signal(false);
 

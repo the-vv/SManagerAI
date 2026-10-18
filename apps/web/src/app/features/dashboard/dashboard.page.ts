@@ -8,27 +8,42 @@ import { RefData } from '../../core/services/ref-data.store';
 import { SettingsStore } from '../../core/services/settings.store';
 import { ChartComponent } from '../../shared/components/chart.component';
 import { colorFor, donutOption, trendOption } from '../../shared/components/charts';
+import { SelectComponent, SelectOption } from '../../shared/components/select.component';
 import { MonthNavComponent } from '../../shared/components/month-nav.component';
 import { DotComponent, EmptyStateComponent, ErrorStateComponent, PageHeaderComponent, SkeletonComponent } from '../../shared/components/ui.components';
 import { Dashboard, Transaction } from '../../shared/models/api.models';
 import { MoneyPipe, PercentBpPipe, SmDatePipe } from '../../shared/pipes/format.pipes';
+import { AiQueueComponent } from '../ai/ai-queue.component';
+import { SmartEntryComponent } from '../ai/smart-entry.component';
 import { TransactionListComponent } from '../transactions/transaction-list.component';
 
 @Component({
   selector: 'sm-dashboard-page',
   imports: [
     PageHeaderComponent, MonthNavComponent, ChartComponent, TransactionListComponent, EmptyStateComponent, ErrorStateComponent,
-    SkeletonComponent, DotComponent, MoneyPipe, SmDatePipe, PercentBpPipe, TuiIcon, RouterLink,
+    SkeletonComponent, DotComponent, MoneyPipe, SmDatePipe, PercentBpPipe, TuiIcon, RouterLink, SmartEntryComponent, AiQueueComponent, SelectComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <sm-page-header title="Dashboard" [subtitle]="subtitle()">
-      <select class="input !min-h-10 !w-auto" aria-label="Account filter" [value]="accountId()" (change)="accountId.set($any($event.target).value)">
-        <option value="" [selected]="!accountId()">All accounts</option>
-        @for (a of ref.accounts(); track a.id) { <option [value]="a.id" [selected]="accountId() === a.id">{{ a.name }}</option> }
-      </select>
-      <sm-month-nav [month]="month()" (monthChange)="month.set($event)" />
+      <button type="button" class="btn relative !px-3" aria-controls="dash-filters" [attr.aria-expanded]="filtersOpen()"
+        [attr.aria-label]="filtersActive() ? 'Filters (active)' : 'Filters'" title="Account and month filters" (click)="filtersOpen.set(!filtersOpen())">
+        <tui-icon icon="@tui.sliders-horizontal" /><span class="hidden sm:inline">Filters</span>
+        @if (filtersActive()) { <span class="absolute -top-1 -right-1 size-2.5 rounded-full bg-accent ring-2 ring-[var(--page)]" aria-hidden="true"></span> }
+      </button>
     </sm-page-header>
+
+    @if (filtersOpen()) {
+      <section id="dash-filters" class="card mb-4 flex flex-wrap items-center gap-2 p-3" aria-label="Dashboard filters">
+        <sm-select class="min-w-0 basis-full min-[480px]:flex-[2] min-[480px]:basis-0 sm:w-52 sm:flex-none" size="m" ariaLabel="Account filter" [options]="accountOptions()"
+          [value]="accountId()" (valueChange)="accountId.set($event ?? '')" />
+        <sm-month-nav class="min-w-0 basis-full min-[480px]:flex-[3] min-[480px]:basis-0 sm:flex-none" [month]="month()" (monthChange)="month.set($event)" />
+        @if (filtersActive()) { <button type="button" class="btn btn-sm" (click)="resetFilters()"><tui-icon icon="@tui.funnel-x" /> Reset</button> }
+      </section>
+    }
+
+    <sm-smart-entry />
+    <sm-ai-queue />
 
     @if (error()) {
       <sm-error-state [message]="error()!" (retry)="load()" />
@@ -53,24 +68,30 @@ import { TransactionListComponent } from '../transactions/transaction-list.compo
       <!-- Month activity -->
       <section aria-label="This month" class="rise">
         <h2 class="mb-2 text-xs font-semibold tracking-wider text-muted uppercase">{{ monthTitle() }} activity</h2>
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div class="card card-pad">
-            <div class="flex items-center justify-between"><span class="field-label">Income</span>
-              <span class="grid size-8 place-items-center rounded-lg bg-income-soft text-income"><tui-icon icon="@tui.arrow-down-left" /></span></div>
-            <div class="num mt-2 text-2xl font-semibold text-income">{{ d.summary.income | money }}</div>
-            <div class="mt-1 text-xs text-muted"><span [class.text-income]="d.summary.delta.income >= 0" [class.text-expense]="d.summary.delta.income < 0">{{ d.summary.delta.income | money: 'sign' }}</span> vs last month</div>
+        <div class="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+          <div class="card flex items-center justify-between gap-3 px-3.5 py-2.5 sm:block">
+            <div class="flex items-center gap-2"><span class="grid size-6 shrink-0 place-items-center rounded-md bg-income-soft text-income"><tui-icon icon="@tui.arrow-down-left" [style.font-size.px]="14" /></span>
+              <span class="field-label">Income</span></div>
+            <div class="text-right sm:mt-1.5 sm:text-left">
+              <div class="num text-lg leading-tight font-semibold text-income sm:text-xl">{{ d.summary.income | money }}</div>
+              <div class="text-[11px] text-muted"><span [class.text-income]="d.summary.delta.income >= 0" [class.text-expense]="d.summary.delta.income < 0">{{ d.summary.delta.income | money: 'sign' }}</span> vs last month</div>
+            </div>
           </div>
-          <div class="card card-pad">
-            <div class="flex items-center justify-between"><span class="field-label">Expenses</span>
-              <span class="grid size-8 place-items-center rounded-lg bg-expense-soft text-expense"><tui-icon icon="@tui.arrow-up-right" /></span></div>
-            <div class="num mt-2 text-2xl font-semibold text-expense">{{ d.summary.expense | money }}</div>
-            <div class="mt-1 text-xs text-muted"><span [class.text-expense]="d.summary.delta.expense > 0" [class.text-income]="d.summary.delta.expense <= 0">{{ d.summary.delta.expense | money: 'sign' }}</span> vs last month</div>
+          <div class="card flex items-center justify-between gap-3 px-3.5 py-2.5 sm:block">
+            <div class="flex items-center gap-2"><span class="grid size-6 shrink-0 place-items-center rounded-md bg-expense-soft text-expense"><tui-icon icon="@tui.arrow-up-right" [style.font-size.px]="14" /></span>
+              <span class="field-label">Expenses</span></div>
+            <div class="text-right sm:mt-1.5 sm:text-left">
+              <div class="num text-lg leading-tight font-semibold text-expense sm:text-xl">{{ d.summary.expense | money }}</div>
+              <div class="text-[11px] text-muted"><span [class.text-expense]="d.summary.delta.expense > 0" [class.text-income]="d.summary.delta.expense <= 0">{{ d.summary.delta.expense | money: 'sign' }}</span> vs last month</div>
+            </div>
           </div>
-          <div class="card card-pad">
-            <div class="flex items-center justify-between"><span class="field-label">Net movement</span>
-              <span class="grid size-8 place-items-center rounded-lg bg-accent-soft text-accent"><tui-icon icon="@tui.arrow-up-down" /></span></div>
-            <div class="num mt-2 text-2xl font-semibold" [class.text-income]="d.summary.net >= 0" [class.text-expense]="d.summary.net < 0">{{ d.summary.net | money: 'sign' }}</div>
-            <div class="mt-1 text-xs text-muted">Income − expenses (transfers excluded)</div>
+          <div class="card flex items-center justify-between gap-3 px-3.5 py-2.5 sm:block">
+            <div class="flex items-center gap-2"><span class="grid size-6 shrink-0 place-items-center rounded-md bg-accent-soft text-accent"><tui-icon icon="@tui.arrow-up-down" [style.font-size.px]="14" /></span>
+              <span class="field-label">Net movement</span></div>
+            <div class="text-right sm:mt-1.5 sm:text-left">
+              <div class="num text-lg leading-tight font-semibold sm:text-xl" [class.text-income]="d.summary.net >= 0" [class.text-expense]="d.summary.net < 0">{{ d.summary.net | money: 'sign' }}</div>
+              <div class="text-[11px] text-muted">Income − expenses</div>
+            </div>
           </div>
         </div>
       </section>
@@ -189,6 +210,12 @@ export class DashboardPage {
   protected readonly data = signal<Dashboard | null>(null);
   protected readonly error = signal<string | null>(null);
 
+  protected readonly filtersOpen = signal(false);
+  /** non-default account or month: shown as a dot on the filter button while the panel is closed */
+  protected readonly filtersActive = computed(() => this.accountId() !== '' || this.month() !== this.settings.thisMonth());
+  protected readonly accountOptions = computed<SelectOption[]>(() => [
+    { value: '', label: 'All accounts' }, ...this.ref.accounts().map((a) => ({ value: a.id, label: a.name })),
+  ]);
   protected readonly monthTitle = computed(() => monthLabel(this.month()));
   protected readonly subtitle = computed(() =>
     this.accountId() ? (this.ref.accountById(this.accountId())?.name ?? '') : 'All accounts · transfers are not counted as income or expenses');
@@ -221,6 +248,8 @@ export class DashboardPage {
       error: (e) => this.error.set(e.message),
     });
   }
+
+  protected resetFilters(): void { this.accountId.set(''); this.month.set(this.settings.thisMonth()); }
 
   protected edit(t: Transaction): void { void this.dialogs.editTransaction(t); }
 }

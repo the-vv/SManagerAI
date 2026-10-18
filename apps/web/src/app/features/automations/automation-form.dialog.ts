@@ -9,10 +9,12 @@ import { AmountInputComponent } from '../../shared/components/amount-input.compo
 import { Automation, AutomationMode, Frequency, IntervalUnit } from '../../shared/models/api.models';
 import { FREQUENCIES } from '../../shared/models/constants';
 import { AutomationsApi } from './automations.api';
+import { SelectComponent } from '../../shared/components/select.component';
+import { DateInputComponent } from '../../shared/components/date-input.component';
 
 @Component({
   selector: 'sm-automation-form',
-  imports: [ReactiveFormsModule, AmountInputComponent],
+  imports: [ReactiveFormsModule, AmountInputComponent, SelectComponent, DateInputComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <form [formGroup]="form" (ngSubmit)="save()" class="flex flex-col gap-4" novalidate>
@@ -39,22 +41,15 @@ import { AutomationsApi } from './automations.api';
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label class="field-label" for="au-acc">Account</label>
-          <select id="au-acc" class="input" formControlName="accountId">
-            @for (a of accounts(); track a.id) { <option [value]="a.id">{{ a.name }}</option> }
-          </select>
+          <sm-select inputId="au-acc" formControlName="accountId" [options]="accountOpts()" />
         </div>
         <div>
           <label class="field-label" for="au-cat">Category</label>
-          <select id="au-cat" class="input" formControlName="categoryId">
-            <option [ngValue]="null">Uncategorized</option>
-            @for (c of categories(); track c.id) { <option [ngValue]="c.id">{{ c.name }}</option> }
-          </select>
+          <sm-select inputId="au-cat" formControlName="categoryId" [options]="categoryOpts()" />
         </div>
         <div>
           <label class="field-label" for="au-freq">Frequency</label>
-          <select id="au-freq" class="input" formControlName="frequency">
-            @for (f of frequencies; track f.value) { <option [value]="f.value">{{ f.label }}</option> }
-          </select>
+          <sm-select inputId="au-freq" formControlName="frequency" [options]="frequencies" />
         </div>
         @if (isCustom()) {
           <div class="grid grid-cols-2 gap-2">
@@ -64,29 +59,24 @@ import { AutomationsApi } from './automations.api';
             </div>
             <div>
               <label class="field-label" for="au-unit">Unit</label>
-              <select id="au-unit" class="input" formControlName="customUnit">
-                <option value="DAY">Days</option><option value="WEEK">Weeks</option><option value="MONTH">Months</option>
-              </select>
+              <sm-select inputId="au-unit" formControlName="customUnit" [options]="unitOpts" />
             </div>
           </div>
         }
         @if (usesDayOfMonth()) {
           <div>
             <label class="field-label" for="au-dom">Day of month</label>
-            <select id="au-dom" class="input" formControlName="dayOfMonth">
-              <option [ngValue]="null">Same as start date</option>
-              @for (d of days; track d) { <option [ngValue]="d">{{ d }}</option> }
-            </select>
+            <sm-select inputId="au-dom" formControlName="dayOfMonth" [options]="domOpts" />
             <p class="m-0 mt-1 text-xs text-muted">Short months use their last day (e.g. 31 → 28/29 Feb).</p>
           </div>
         }
         <div>
           <label class="field-label" for="au-start">Start date</label>
-          <input id="au-start" type="date" class="input" formControlName="startDate" />
+          <sm-date inputId="au-start" formControlName="startDate" />
         </div>
         <div>
           <label class="field-label" for="au-end">End date (optional)</label>
-          <input id="au-end" type="date" class="input" formControlName="endDate" />
+          <sm-date inputId="au-end" formControlName="endDate" [clearable]="true" />
         </div>
       </div>
 
@@ -140,9 +130,15 @@ export class AutomationFormDialog {
   protected readonly frequencies = FREQUENCIES;
   protected readonly days = Array.from({ length: 31 }, (_, i) => i + 1);
   protected readonly accounts = this.ref.activeAccounts;
+  protected readonly accountOpts = computed(() => this.accounts().map((a) => ({ value: a.id, label: a.name })));
+  protected readonly unitOpts = [{ value: 'DAY' as const, label: 'Days' }, { value: 'WEEK' as const, label: 'Weeks' }, { value: 'MONTH' as const, label: 'Months' }];
+  protected readonly domOpts: { value: number | null; label: string }[] = [
+    { value: null, label: 'Same as start date' }, ...Array.from({ length: 31 }, (_, i) => ({ value: i + 1, label: String(i + 1) })),
+  ];
   protected readonly busy = signal(false);
   protected readonly submitted = signal(false);
   protected readonly kind = signal<'INCOME' | 'EXPENSE'>(this.automation?.kind ?? 'EXPENSE');
+  protected readonly categoryOpts = computed(() => [{ value: null as string | null, label: 'Uncategorized' }, ...this.categories().map((c) => ({ value: c.id as string | null, label: c.name }))]);
   protected readonly categories = computed(() => (this.kind() === 'INCOME' ? this.ref.incomeCategories() : this.ref.expenseCategories()));
 
   protected readonly form = this.fb.group({

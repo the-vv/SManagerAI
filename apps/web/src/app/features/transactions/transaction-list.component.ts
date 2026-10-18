@@ -32,7 +32,13 @@ interface Group { key: string; label: string; items: Transaction[]; income: numb
                 <tui-icon [icon]="iconOf(t)" />
               </span>
               <span class="min-w-0 flex-1">
-                <span class="block truncate text-sm font-medium">{{ t.transfer ? transferLabel(t) : t.title }}</span>
+                <span class="flex items-center gap-1.5">
+                  <span class="min-w-0 truncate text-sm font-medium">{{ t.transfer ? transferLabel(t) : t.title }}</span>
+                  @if (t.aiGenerated) {
+                    <span class="inline-flex shrink-0 items-center gap-0.5 rounded-md bg-accent-soft px-1.5 py-px text-[10px] leading-4 font-semibold text-accent"
+                      title="Added with AI Smart Entry" aria-label="Added with AI"><tui-icon icon="@tui.zap" [style.font-size.px]="10" />AI</span>
+                  }
+                </span>
                 <span class="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted">
                   @if (t.category) { <span>{{ t.category.name }}</span> }
                   @else if (!t.transfer) { <span class="text-faint">Uncategorized</span> }
