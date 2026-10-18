@@ -47,6 +47,7 @@ dashboard ↔ transactions ↔ reports consistency.
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – money storage, **balance rules**, timezone policy, API shape, scheduler
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) – VPS with Docker Compose + Caddy, backup/restore, upgrades
+- [docs/INVITES.md](docs/INVITES.md) – invite-only sign-up (admin creates invite links)
 - [docs/AI_SMART_ENTRY.md](docs/AI_SMART_ENTRY.md) – optional AI quick entry (queue, env vars, safety rules)
 - [docs/ANDROID.md](docs/ANDROID.md) – Capacitor build/sync/Android Studio
 - [docs/GOOGLE_OAUTH.md](docs/GOOGLE_OAUTH.md) – optional Google sign-in

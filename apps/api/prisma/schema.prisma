@@ -88,6 +88,7 @@ model User {
   name         String
   passwordHash String?
   googleId     String?  @unique
+  isAdmin      Boolean  @default(false) // may create invites; the first account ever created is the admin
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -101,6 +102,7 @@ model User {
   automations Automation[]
   executions  AutomationExecution[]
   aiJobs      AiJob[]
+  invitesCreated Invite[]
 }
 
 model Session {
@@ -332,4 +334,22 @@ model AiJob {
   @@index([status, nextRetryAt, createdAt])
   @@index([status, leaseExpiresAt])
   @@index([userId, createdAt])
+}
+
+// Single-use sign-up invites (used when ALLOW_REGISTRATION=false). Only a SHA-256 hash of the code is
+// stored, so a database copy cannot be used to register; the admin sees the code once, at creation.
+model Invite {
+  id          String    @id @default(cuid())
+  codeHash    String    @unique
+  note        String? // who it is for (free text, admin-only)
+  createdById String
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+  usedAt      DateTime?
+  usedById    String?
+  revokedAt   DateTime?
+
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([createdById, createdAt])
 }

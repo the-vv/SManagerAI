@@ -13,11 +13,12 @@ import { SessionInfo, Settings } from '../../shared/models/api.models';
 import { CURRENCIES, LOCALES, TIMEZONES } from '../../shared/models/constants';
 import { SmDatePipe } from '../../shared/pipes/format.pipes';
 import { AccountsApi } from '../accounts/accounts.api';
+import { InvitesSection } from './invites.section';
 import { SelectComponent } from '../../shared/components/select.component';
 
 @Component({
   selector: 'sm-settings-page',
-  imports: [PageHeaderComponent, ReactiveFormsModule, TuiSwitch, SmDatePipe, RouterLink, SelectComponent],
+  imports: [PageHeaderComponent, ReactiveFormsModule, TuiSwitch, SmDatePipe, RouterLink, SelectComponent, InvitesSection],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <sm-page-header title="Settings" />
@@ -86,6 +87,8 @@ import { SelectComponent } from '../../shared/components/select.component';
           Export transactions or any report to CSV from the <a routerLink="/transactions">Transactions</a> and <a routerLink="/reports">Reports</a> pages.
         </p>
       </section>
+
+      @if (auth.user()?.isAdmin) { <sm-invites-section /> }
 
       <section class="card card-pad rise">
         <h2 class="m-0 mb-3 text-base font-semibold">Sessions</h2>

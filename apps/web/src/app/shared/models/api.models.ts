@@ -10,9 +10,17 @@ export type IntervalUnit = 'DAY' | 'WEEK' | 'MONTH';
 export type AutomationMode = 'AUTO' | 'REMINDER';
 export type ExecutionStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'SKIPPED';
 
-export interface User { id: string; email: string; name: string; }
+export interface User { id: string; email: string; name: string; isAdmin?: boolean; }
 
-export interface AuthConfig { registrationOpen: boolean; googleClientId: string | null; }
+export interface AuthConfig { registrationOpen: boolean; inviteRequired: boolean; googleClientId: string | null; }
+
+export type InviteStatus = 'ACTIVE' | 'USED' | 'EXPIRED' | 'REVOKED';
+export interface Invite {
+  id: string; note: string | null; createdAt: string; expiresAt: string; usedAt: string | null;
+  usedBy: { id: string; email: string; name: string } | null; status: InviteStatus;
+}
+/** Returned once, when an invite is created: the only time the plain code exists. */
+export interface NewInvite { id: string; code: string; note: string | null; createdAt: string; expiresAt: string; }
 
 export interface AuthResult { user: User; expiresAt: string; token?: string; }
 

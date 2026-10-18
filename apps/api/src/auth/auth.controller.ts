@@ -27,14 +27,12 @@ export class AuthController {
 
   @Public() @Get('config')
   publicConfig() {
-    return this.auth.registrationOpen.then((registrationOpen) => ({
-      registrationOpen, googleClientId: this.config.googleClientId ?? null,
-    }));
+    return this.auth.signupMode().then((m) => ({ ...m, googleClientId: this.config.googleClientId ?? null }));
   }
 
   @Public() @RateLimit(STRICT) @Post('register')
   async register(@Body() dto: RegisterDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    return this.respond(req, res, await this.auth.register(dto.email, dto.password, dto.name, req.headers['user-agent']));
+    return this.respond(req, res, await this.auth.register(dto.email, dto.password, dto.name, req.headers['user-agent'], dto.inviteCode));
   }
 
   @Public() @RateLimit(STRICT) @HttpCode(200) @Post('login')
@@ -44,7 +42,7 @@ export class AuthController {
 
   @Public() @RateLimit(STRICT) @HttpCode(200) @Post('google')
   async google(@Body() dto: GoogleLoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    return this.respond(req, res, await this.auth.loginWithGoogle(dto.idToken, req.headers['user-agent']));
+    return this.respond(req, res, await this.auth.loginWithGoogle(dto.idToken, req.headers['user-agent'], dto.inviteCode));
   }
 
   @HttpCode(204) @Post('logout')
@@ -55,7 +53,7 @@ export class AuthController {
 
   @Get('me')
   me(@CurrentUser() user: AuthUser) {
-    return { id: user.id, email: user.email, name: user.name };
+    return { id: user.id, email: user.email, name: user.name, isAdmin: user.isAdmin };
   }
 
   @Get('sessions')

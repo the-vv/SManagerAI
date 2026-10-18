@@ -47,11 +47,12 @@ export class AuthService {
   login(email: string, password: string): Observable<AuthResult> {
     return this.api.post<AuthResult>('/auth/login', { email, password }).pipe(tap((r) => this.accept(r)));
   }
-  register(name: string, email: string, password: string): Observable<AuthResult> {
-    return this.api.post<AuthResult>('/auth/register', { name, email, password }).pipe(tap((r) => this.accept(r)));
+  /** @param inviteCode required when the server is invite-only (`AuthConfig.inviteRequired`) */
+  register(name: string, email: string, password: string, inviteCode?: string): Observable<AuthResult> {
+    return this.api.post<AuthResult>('/auth/register', { name, email, password, ...(inviteCode ? { inviteCode } : {}) }).pipe(tap((r) => this.accept(r)));
   }
-  google(idToken: string): Observable<AuthResult> {
-    return this.api.post<AuthResult>('/auth/google', { idToken }).pipe(tap((r) => this.accept(r)));
+  google(idToken: string, inviteCode?: string): Observable<AuthResult> {
+    return this.api.post<AuthResult>('/auth/google', { idToken, ...(inviteCode ? { inviteCode } : {}) }).pipe(tap((r) => this.accept(r)));
   }
 
   private accept(r: AuthResult): void {

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TuiIcon } from '@taiga-ui/core';
 import { AuthService } from '../../core/auth/auth.service';
 import { RefData } from '../../core/services/ref-data.store';
@@ -33,6 +33,15 @@ declare const google: {
               @if (submitted() && form.controls.name.invalid) { <div class="error-text">Name is required.</div> }
             </div>
           }
+          @if (mode() === 'register' && config()?.inviteRequired) {
+            <div>
+              <label class="field-label" for="a-invite">Invite code</label>
+              <input id="a-invite" class="input uppercase" formControlName="inviteCode" autocomplete="off" autocapitalize="characters" spellcheck="false"
+                placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="40" [class.invalid]="submitted() && form.controls.inviteCode.invalid" />
+              @if (submitted() && form.controls.inviteCode.invalid) { <div class="error-text">Enter the invite code you were given.</div> }
+              @else { <div class="mt-1 text-xs text-muted">Sign-up is by invitation only. Open your invite link, or paste the code here.</div> }
+            </div>
+          }
           <div>
             <label class="field-label" for="a-email">Email</label>
             <input id="a-email" class="input" type="email" formControlName="email" autocomplete="username" inputmode="email" />
@@ -54,9 +63,9 @@ declare const google: {
           }
         </form>
 
-        @if (config()?.registrationOpen) {
+        @if (config()?.registrationOpen || config()?.inviteRequired) {
           <p class="mt-4 text-center text-sm text-muted">
-            {{ mode() === 'login' ? 'New here?' : 'Already have an account?' }}
+            {{ mode() === 'login' ? (config()?.inviteRequired ? 'Have an invite?' : 'New here?') : 'Already have an account?' }}
             <button type="button" class="cursor-pointer border-0 bg-transparent p-0 font-semibold text-accent" (click)="toggle()">
               {{ mode() === 'login' ? 'Create an account' : 'Sign in' }}</button>
           </p>
@@ -68,6 +77,7 @@ declare const google: {
 export class AuthPage {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly ref = inject(RefData);
   private readonly settings = inject(SettingsStore);
   private readonly fb = inject(FormBuilder).nonNullable;
@@ -83,27 +93,36 @@ export class AuthPage {
     name: this.fb.control(''),
     email: this.fb.control('', [Validators.required, Validators.email]),
     password: this.fb.control('', [Validators.required]),
+    inviteCode: this.fb.control(''),
   });
 
   constructor() {
     this.auth.config().subscribe({
       next: (c) => {
         this.config.set(c);
-        if (!c.registrationOpen) this.mode.set('login');
+        // an invite link (/login?invite=CODE) opens the sign-up form with the code filled in
+        const invite = this.route.snapshot.queryParamMap.get('invite');
+        if (invite && c.inviteRequired) { this.form.controls.inviteCode.setValue(invite.trim()); this.setMode('register'); }
+        else if (!c.registrationOpen && !c.inviteRequired) this.mode.set('login');
         if (c.googleClientId) setTimeout(() => this.initGoogle(c.googleClientId!), 0);
       },
       error: () => this.error.set('Cannot reach the server.'),
     });
   }
 
-  protected toggle(): void {
-    this.mode.update((m) => (m === 'login' ? 'register' : 'login'));
+  protected toggle(): void { this.setMode(this.mode() === 'login' ? 'register' : 'login'); }
+
+  private setMode(m: 'login' | 'register'): void {
+    this.mode.set(m);
     this.error.set(null); this.submitted.set(false);
+    const reg = m === 'register';
     const pw = this.form.controls.password;
-    pw.setValidators(this.mode() === 'register' ? [Validators.required, Validators.minLength(10)] : [Validators.required]);
+    pw.setValidators(reg ? [Validators.required, Validators.minLength(10)] : [Validators.required]);
     pw.updateValueAndValidity();
-    this.form.controls.name.setValidators(this.mode() === 'register' ? [Validators.required] : []);
+    this.form.controls.name.setValidators(reg ? [Validators.required] : []);
     this.form.controls.name.updateValueAndValidity();
+    this.form.controls.inviteCode.setValidators(reg && this.config()?.inviteRequired ? [Validators.required, Validators.pattern(/\S/)] : []);
+    this.form.controls.inviteCode.updateValueAndValidity();
   }
 
   protected submit(): void {
@@ -111,8 +130,13 @@ export class AuthPage {
     if (this.form.invalid) return;
     const v = this.form.getRawValue();
     this.busy.set(true);
-    const req = this.mode() === 'login' ? this.auth.login(v.email, v.password) : this.auth.register(v.name, v.email, v.password);
+    const req = this.mode() === 'login' ? this.auth.login(v.email, v.password) : this.auth.register(v.name, v.email, v.password, this.inviteCode());
     req.subscribe({ next: () => this.done(), error: (e) => { this.busy.set(false); this.error.set(e.message); } });
+  }
+
+  /** the code to send with a sign-up (only while the server is invite-only) */
+  private inviteCode(): string | undefined {
+    return this.config()?.inviteRequired ? this.form.controls.inviteCode.value.trim() || undefined : undefined;
   }
 
   private done(): void {
@@ -128,7 +152,7 @@ export class AuthPage {
         client_id: clientId,
         callback: (r: { credential: string }) => {
           this.busy.set(true);
-          this.auth.google(r.credential).subscribe({ next: () => this.done(), error: (e) => { this.busy.set(false); this.error.set(e.message); } });
+          this.auth.google(r.credential, this.inviteCode()).subscribe({ next: () => this.done(), error: (e) => { this.busy.set(false); this.error.set(e.message); } });
         },
       });
       google.accounts.id.renderButton(this.googleBtn()!.nativeElement, { theme: 'outline', size: 'large', width: 300 });
