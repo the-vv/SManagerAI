@@ -1,0 +1,12 @@
+# SManager AI: only the public sign-in page is meant to be indexed; app screens need a login.
+User-agent: *
+Allow: /$
+Allow: /login
+Disallow: /dashboard
+Disallow: /transactions
+Disallow: /accounts
+Disallow: /categories
+Disallow: /automations
+Disallow: /reports
+Disallow: /settings
+Disallow: /api/

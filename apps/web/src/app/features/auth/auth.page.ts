@@ -20,7 +20,7 @@ declare const google: {
       <div class="rise w-full max-w-sm">
         <div class="mb-6 flex items-center gap-3">
           <span class="grid size-11 place-items-center rounded-2xl bg-accent text-white shadow-lg"><tui-icon icon="@tui.wallet" [style.font-size.px]="22" /></span>
-          <div><div class="text-xl font-semibold tracking-tight">SManager</div><div class="text-xs text-muted">Personal finance, simply</div></div>
+          <div><div class="text-xl font-semibold tracking-tight">SManager AI</div><div class="text-xs text-muted">Personal finance, simply</div></div>
         </div>
 
         <form class="card card-pad flex flex-col gap-4" [formGroup]="form" (ngSubmit)="submit()" novalidate>
