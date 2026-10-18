@@ -59,7 +59,7 @@ declare const google: {
 
           @if (config()?.googleClientId) {
             <div class="flex items-center gap-3 text-xs text-muted"><span class="h-px flex-1 bg-line"></span>or<span class="h-px flex-1 bg-line"></span></div>
-            <div #googleBtn class="flex justify-center"></div>
+            <div #googleBtn class="flex justify-center" style="color-scheme: light;"></div>
           }
         </form>
 

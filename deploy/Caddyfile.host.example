@@ -1,7 +1,7 @@
 # Add to your EXISTING host-level Caddyfile (Cloudflare proxy in front is fine).
 smanagerai.thevv.me {
 	encode zstd gzip
-	reverse_proxy 127.0.0.1:8080
+	reverse_proxy 127.0.0.1:8082
 }
 
 # If your Caddy runs in Docker, instead attach it to the same network and use:
