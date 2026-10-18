@@ -38,7 +38,7 @@ const COLLAPSE_KEY = 'sm-sidebar-collapsed';
       </div>
       <nav class="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-2">
         @for (n of nav; track n.path) {
-          <a class="nav-link" [routerLink]="n.path" routerLinkActive="active" [attr.title]="collapsed() ? n.label : null" [attr.aria-label]="n.label">
+          <a class="nav-link" [routerLink]="n.path" [replaceUrl]="true" routerLinkActive="active" [attr.title]="collapsed() ? n.label : null" [attr.aria-label]="n.label">
             <tui-icon [icon]="n.icon" />
             @if (!collapsed()) { <span>{{ n.label }}</span> }
           </a>
@@ -133,7 +133,7 @@ const COLLAPSE_KEY = 'sm-sidebar-collapsed';
     </nav>
 
     <ng-template #tab let-n>
-      <a class="flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] text-muted no-underline" [routerLink]="n.path" routerLinkActive="!text-accent">
+      <a class="flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] text-muted no-underline" [routerLink]="n.path" [replaceUrl]="true" routerLinkActive="!text-accent">
         <tui-icon [icon]="n.icon" />{{ n.label }}
       </a>
     </ng-template>
@@ -144,7 +144,7 @@ const COLLAPSE_KEY = 'sm-sidebar-collapsed';
         <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-line-strong"></div>
         <div class="grid grid-cols-2 gap-2">
           @for (n of moreItems; track n.path) {
-            <a class="nav-link border border-line bg-surface" [routerLink]="n.path" (click)="moreOpen.set(false)"><tui-icon [icon]="n.icon" />{{ n.label }}</a>
+            <a class="nav-link border border-line bg-surface" [routerLink]="n.path" [replaceUrl]="true" (click)="moreOpen.set(false)"><tui-icon [icon]="n.icon" />{{ n.label }}</a>
           }
         </div>
         <button type="button" class="btn mt-3 w-full" (click)="moreOpen.set(false); auth.logout()"><tui-icon icon="@tui.log-out" /> Sign out</button>
