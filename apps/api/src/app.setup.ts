@@ -21,7 +21,7 @@ export function configureApp(app: INestApplication, config: AppConfig): void {
     const doc = SwaggerModule.createDocument(
       app,
       new DocumentBuilder()
-        .setTitle('SManager API').setDescription('Personal finance manager').setVersion('1.0')
+        .setTitle('SManager AI API').setDescription('Personal finance manager with AI Smart Entry').setVersion('1.0')
         .addBearerAuth().addCookieAuth('sm_session').build(),
     );
     SwaggerModule.setup('api/docs', app, doc);

@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "app.smanager.finance"
+    namespace = "app.smanagerai.finance"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "app.smanager.finance"
+        applicationId "app.smanagerai.finance"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

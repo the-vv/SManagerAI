@@ -1,4 +1,4 @@
-package app.smanager.finance;
+package app.smanagerai.finance;
 
 import com.getcapacitor.BridgeActivity;
 

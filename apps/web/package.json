@@ -1,5 +1,5 @@
 {
-  "name": "@smanager/web",
+  "name": "@smanagerai/web",
   "version": "1.0.0",
   "scripts": {
     "ng": "ng",

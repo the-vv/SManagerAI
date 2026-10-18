@@ -1,4 +1,4 @@
-// SManager schema (SQLite).
+// SManager AI schema (SQLite).
 //
 // MONEY: every amount is stored as an INTEGER NUMBER OF MINOR UNITS (paise for INR) in a
 // 64-bit `BigInt` column. SQLite has no native decimal type, so floats/decimals would be

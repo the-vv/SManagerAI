@@ -6,7 +6,7 @@ Disabled until `GOOGLE_CLIENT_ID` is set.
 
 1. Google Cloud Console → *APIs & Services → Credentials → Create credentials → OAuth client ID* →
    type **Web application**.
-2. *Authorized JavaScript origins*: `https://finance.example.com` (and `http://localhost:4200` for development).
+2. *Authorized JavaScript origins*: `https://smanagerai.thevv.me` (and `http://localhost:4200` for development).
    No redirect URI is needed for the ID-token flow.
 3. Put the client ID in `.env` (`GOOGLE_CLIENT_ID=...apps.googleusercontent.com`) and `docker compose up -d`.
    The login page shows the Google button automatically.

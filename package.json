@@ -1,8 +1,8 @@
 {
-  "name": "smanager",
+  "name": "smanagerai",
   "private": true,
   "version": "1.0.0",
-  "description": "SManager - personal finance manager (Angular + NestJS + Prisma/SQLite + Capacitor)",
+  "description": "SManager AI - personal finance manager (Angular + NestJS + Prisma/SQLite + Capacitor)",
   "workspaces": ["apps/*"],
   "engines": { "node": ">=22.12" },
   "scripts": {

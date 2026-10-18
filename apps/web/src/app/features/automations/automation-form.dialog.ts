@@ -96,7 +96,7 @@ import { DateInputComponent } from '../../shared/components/date-input.component
           <label class="field-label" for="au-rem">Heads-up reminder (days before)</label>
           <input id="au-rem" type="number" min="0" max="30" class="input !w-28" formControlName="reminderDaysBefore" />
         </div>
-        <p class="m-0 mt-2 text-xs text-muted">SManager only records or reminds you. It never moves real money or triggers bank debits.</p>
+        <p class="m-0 mt-2 text-xs text-muted">SManager AI only records or reminds you. It never moves real money or triggers bank debits.</p>
       </fieldset>
 
       @if (!automation && startsInPast()) {

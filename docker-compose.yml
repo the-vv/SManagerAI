@@ -1,5 +1,6 @@
-# SManager - production stack. One API instance + static web (Caddy). SQLite lives on a local bind mount.
+# SManager AI - production stack. One API instance + static web (Caddy). SQLite lives on a local bind mount.
 # Usage: cp .env.example .env && edit it, then: docker compose up -d --build
+name: smanagerai   # containers become smanagerai-api-1 / smanagerai-web-1
 services:
   api:
     build:

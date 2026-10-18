@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">SManager</string>
-    <string name="title_activity_main">SManager</string>
-    <string name="package_name">app.smanager.finance</string>
-    <string name="custom_url_scheme">app.smanager.finance</string>
+    <string name="app_name">SManager AI</string>
+    <string name="title_activity_main">SManager AI</string>
+    <string name="package_name">app.smanagerai.finance</string>
+    <string name="custom_url_scheme">app.smanagerai.finance</string>
 </resources>

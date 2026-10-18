@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TuiIcon } from '@taiga-ui/core';
+
 import { AuthService } from '../../core/auth/auth.service';
 import { RefData } from '../../core/services/ref-data.store';
 import { SettingsStore } from '../../core/services/settings.store';
@@ -13,13 +13,13 @@ declare const google: {
 
 @Component({
   selector: 'sm-auth-page',
-  imports: [ReactiveFormsModule, TuiIcon],
+  imports: [ReactiveFormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="grid min-h-dvh place-items-center px-4 py-10" style="background: radial-gradient(900px 500px at 15% -10%, var(--accent-soft), transparent), radial-gradient(700px 400px at 100% 110%, var(--income-soft), transparent), var(--bg)">
       <div class="rise w-full max-w-sm">
         <div class="mb-6 flex items-center gap-3">
-          <span class="grid size-11 place-items-center rounded-2xl bg-accent text-white shadow-lg"><tui-icon icon="@tui.wallet" [style.font-size.px]="22" /></span>
+          <img src="assets/logo-256.png" alt="SManager AI logo" width="44" height="44" class="size-11 rounded-2xl shadow-lg" />
           <div><div class="text-xl font-semibold tracking-tight">SManager AI</div><div class="text-xs text-muted">Personal finance, simply</div></div>
         </div>
 

@@ -33,7 +33,7 @@ const COLLAPSE_KEY = 'sm-sidebar-collapsed';
     <aside class="fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-line bg-elevated transition-[width] duration-200 lg:flex"
       [style.width.px]="collapsed() ? 76 : 256" aria-label="Primary">
       <div class="flex h-16 items-center gap-3 px-4">
-        <span class="grid size-9 shrink-0 place-items-center rounded-xl bg-accent text-white"><tui-icon icon="@tui.wallet" /></span>
+        <img src="assets/logo-128.png" alt="" width="36" height="36" class="size-9 shrink-0 rounded-xl" />
         @if (!collapsed()) { <span class="text-lg font-semibold tracking-tight">SManager</span> <span class="rounded-md bg-accent-soft px-1.5 py-px text-[10px] leading-4 font-bold tracking-wide text-accent" title="AI-powered">AI</span> }
       </div>
       <nav class="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-2">
@@ -62,7 +62,7 @@ const COLLAPSE_KEY = 'sm-sidebar-collapsed';
       <!-- Top bar -->
       <header class="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-line bg-bg/85 px-4 backdrop-blur lg:px-8"
         style="padding-top: env(safe-area-inset-top); height: calc(4rem + env(safe-area-inset-top))">
-        <span class="grid size-8 place-items-center rounded-lg bg-accent text-white lg:hidden"><tui-icon icon="@tui.wallet" /></span>
+        <img src="assets/logo-128.png" alt="" width="32" height="32" class="size-8 rounded-lg lg:hidden" />
         <span class="text-base font-semibold lg:hidden">SManager</span>
         <span class="lg:hidden rounded-md bg-accent-soft px-1.5 py-px text-[10px] leading-4 font-bold tracking-wide text-accent" title="AI-powered">AI</span>
         <span class="flex-1"></span>

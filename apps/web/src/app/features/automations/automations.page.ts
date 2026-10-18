@@ -51,7 +51,7 @@ import { AutomationsApi } from './automations.api';
 
       @if (items().length === 0) {
         <div class="card"><sm-empty-state icon="@tui.repeat" title="No automations yet"
-          hint="Add your salary, rent or EMI once and SManager will record it or remind you each time."
+          hint="Add your salary, rent or EMI once and SManager AI will record it or remind you each time."
           actionLabel="New automation" (action)="create()" /></div>
       } @else {
         <div class="grid gap-3 lg:grid-cols-[1fr_340px]">

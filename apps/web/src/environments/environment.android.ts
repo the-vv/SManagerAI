@@ -4,5 +4,5 @@
  */
 export const environment = {
   production: true,
-  apiUrl: 'https://finance.example.com/api',
+  apiUrl: 'https://smanagerai.thevv.me/api',
 };

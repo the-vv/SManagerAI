@@ -1,4 +1,4 @@
-# SManager – personal finance manager
+# SManager AI – personal finance manager
 
 Angular 21 + Taiga UI 5 + Tailwind 4 · NestJS 12 · Prisma 7 + SQLite · Capacitor 8 (Android) · Docker/Caddy.
 One person, one VPS, one SQLite file.
@@ -36,7 +36,7 @@ Open the web app and create the first account (registration is always open for t
 
 ```bash
 npm test                      # API: unit + integration tests against a real migrated SQLite DB
-npm test -w @smanager/web     # web: formatting / timezone / money parsing
+npm test -w @smanagerai/web     # web: formatting / timezone / money parsing
 ```
 The API suite covers income/expense math, balances, month carry-forward, backdated edits/deletes, transfers,
 credit cards, adjustments, schedules (month ends, leap years), duplicate prevention (incl. parallel runs and

@@ -5,9 +5,9 @@ WORKDIR /repo
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
-RUN npm ci -w @smanager/web --include-workspace-root
+RUN npm ci -w @smanagerai/web --include-workspace-root
 COPY apps/web apps/web
-RUN npm run build -w @smanager/web
+RUN npm run build -w @smanagerai/web
 
 FROM caddy:2-alpine
 COPY deploy/Caddyfile.web /etc/caddy/Caddyfile

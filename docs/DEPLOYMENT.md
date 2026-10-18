@@ -5,7 +5,7 @@ Stack: `api` (NestJS + SQLite on a bind-mounted local disk) and `web` (Caddy ser
 
 ## First deploy
 ```bash
-git clone <your repo> /opt/smanager && cd /opt/smanager
+git clone <your repo> /opt/smanagerai && cd /opt/smanagerai
 cp .env.example .env && nano .env          # CORS_ORIGINS, ALLOW_REGISTRATION, WEB_PORT ...
 mkdir -p data backups
 # the API runs as uid 1000 inside the container - give it the volumes (one-time)
@@ -17,7 +17,7 @@ Migrations are applied automatically on every start (`prisma migrate deploy`).
 
 Add the site to your host Caddyfile (see `deploy/Caddyfile.host.example`):
 ```
-finance.example.com {
+smanagerai.thevv.me {
 	encode zstd gzip
 	reverse_proxy 127.0.0.1:8080
 }
@@ -40,7 +40,7 @@ with `integrity_check`, stored as a single gzip'd file) and prunes backups older
 ```bash
 ./deploy/backup.sh                                   # manual
 crontab -e   # daily at 03:15
-15 3 * * * cd /opt/smanager && ./deploy/backup.sh >> backups/backup.log 2>&1
+15 3 * * * cd /opt/smanagerai && ./deploy/backup.sh >> backups/backup.log 2>&1
 ```
 Also copy `backups/` off the server (rsync/rclone/object storage) – a backup on the same disk is not a backup.
 
@@ -53,7 +53,7 @@ the file, fixes ownership and starts again. Tested: data created after the backu
 
 ## Upgrades
 ```bash
-cd /opt/smanager && ./deploy/backup.sh && git pull
+cd /opt/smanagerai && ./deploy/backup.sh && git pull
 docker compose up -d --build        # rebuilds, runs new migrations on start
 docker compose logs -f api
 ```
