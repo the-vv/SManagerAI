@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/.angular
+**/*.db
+**/*.db-*
+data
+backups
+.git
+apps/web/android
+.env

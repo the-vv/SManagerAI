@@ -1,0 +1,298 @@
+// SManager schema (SQLite).
+//
+// MONEY: every amount is stored as an INTEGER NUMBER OF MINOR UNITS (paise for INR) in a
+// 64-bit `BigInt` column. SQLite has no native decimal type, so floats/decimals would be
+// approximate; integers are exact and SUM() over them is exact. Amounts on Transaction are
+// always > 0 (the `kind` gives the direction); BalanceAdjustment.amount is a signed delta.
+//
+// TIME: instants (occurredAt, createdAt, ...) are stored in UTC. Calendar concepts that are
+// really "a date" (automation start/next dates) are stored as 'YYYY-MM-DD' strings that are
+// interpreted in the user's configured timezone.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum AccountType {
+  BANK
+  SAVINGS
+  CASH
+  CREDIT_CARD
+}
+
+enum CategoryType {
+  INCOME
+  EXPENSE
+}
+
+// INCOME/EXPENSE are real income/spending. TRANSFER_* are the two legs of a Transfer and are
+// never counted as income or expense.
+enum TransactionKind {
+  INCOME
+  EXPENSE
+  TRANSFER_OUT
+  TRANSFER_IN
+}
+
+enum TransactionSource {
+  MANUAL
+  AUTOMATION_AUTO
+  AUTOMATION_CONFIRMED
+}
+
+enum Frequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  BIMONTHLY
+  QUARTERLY
+  HALF_YEARLY
+  YEARLY
+  CUSTOM
+}
+
+enum IntervalUnit {
+  DAY
+  WEEK
+  MONTH
+}
+
+enum AutomationMode {
+  AUTO
+  REMINDER
+}
+
+enum ExecutionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  SKIPPED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String?
+  googleId     String?  @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  preference  UserPreference?
+  sessions    Session[]
+  accounts    Account[]
+  categories  Category[]
+  transactions Transaction[]
+  transfers   Transfer[]
+  adjustments BalanceAdjustment[]
+  automations Automation[]
+  executions  AutomationExecution[]
+}
+
+model Session {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model UserPreference {
+  userId               String   @id
+  currency             String   @default("INR")
+  locale               String   @default("en-IN")
+  timezone             String   @default("Asia/Kolkata")
+  theme                String   @default("dark") // dark | light
+  dateFormat           String   @default("dd MMM yyyy")
+  timeFormat           String   @default("12h") // 12h | 24h
+  useCategoryColors    Boolean  @default(true)
+  defaultTxKind        TransactionKind @default(EXPENSE)
+  defaultAutomationMode AutomationMode @default(REMINDER)
+  reminderDaysBefore   Int      @default(2)
+  updatedAt            DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id          String      @id @default(cuid())
+  ownerId     String
+  name        String
+  institution String?
+  identifier  String? // last four digits or other short identifier
+  type        AccountType @default(BANK)
+  // Signed. For CREDIT_CARD this is normally <= 0 (a negative balance = amount owed).
+  openingBalance BigInt   @default(0)
+  openingDate DateTime // start of the opening day (UTC instant); nothing may be dated before it
+  isDefault   Boolean     @default(false)
+  isActive    Boolean     @default(true)
+  color       String?
+  icon        String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  owner        User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  adjustments  BalanceAdjustment[]
+  automations  Automation[]
+  transfersOut Transfer[]          @relation("TransferFrom")
+  transfersIn  Transfer[]          @relation("TransferTo")
+
+  @@unique([ownerId, name])
+  @@index([ownerId, isActive])
+}
+
+model Category {
+  id        String       @id @default(cuid())
+  ownerId   String
+  name      String
+  type      CategoryType
+  color     String?
+  icon      String?
+  isActive  Boolean      @default(true)
+  sortOrder Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  automations  Automation[]
+
+  @@unique([ownerId, type, name])
+  @@index([ownerId, type])
+}
+
+model Transfer {
+  id            String   @id @default(cuid())
+  ownerId       String
+  fromAccountId String
+  toAccountId   String
+  amount        BigInt
+  occurredAt    DateTime
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  owner       User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  fromAccount Account       @relation("TransferFrom", fields: [fromAccountId], references: [id], onDelete: Restrict)
+  toAccount   Account       @relation("TransferTo", fields: [toAccountId], references: [id], onDelete: Restrict)
+  legs        Transaction[]
+
+  @@index([ownerId, occurredAt])
+}
+
+model Transaction {
+  id          String            @id @default(cuid())
+  ownerId     String
+  accountId   String
+  categoryId  String?
+  kind        TransactionKind
+  amount      BigInt // always > 0
+  title       String
+  notes       String?
+  occurredAt  DateTime // when it happened (UTC instant)
+  source      TransactionSource @default(MANUAL)
+  transferId  String?
+  automationId String?
+  occurrenceDate String? // 'YYYY-MM-DD' of the automation occurrence that produced it
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  owner      User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  account    Account     @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  category   Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  transfer   Transfer?   @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  automation Automation? @relation(fields: [automationId], references: [id], onDelete: SetNull)
+  execution  AutomationExecution?
+
+  // A given automation occurrence can produce at most one transaction.
+  @@unique([automationId, occurrenceDate])
+  @@index([ownerId, occurredAt])
+  @@index([ownerId, accountId, occurredAt])
+  @@index([ownerId, categoryId, occurredAt])
+  @@index([transferId])
+}
+
+model BalanceAdjustment {
+  id          String   @id @default(cuid())
+  ownerId     String
+  accountId   String
+  amount      BigInt // signed delta applied at effectiveAt
+  effectiveAt DateTime
+  reason      String
+  createdAt   DateTime @default(now())
+
+  owner   User    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([ownerId, accountId, effectiveAt])
+}
+
+model Automation {
+  id           String         @id @default(cuid())
+  ownerId      String
+  accountId    String
+  categoryId   String?
+  title        String
+  kind         CategoryType // INCOME or EXPENSE
+  amount       BigInt
+  description  String?
+  frequency    Frequency
+  customEvery  Int? // CUSTOM only: every N <customUnit>
+  customUnit   IntervalUnit?
+  dayOfMonth   Int? // month-based schedules: anchor day (clamped to short months)
+  startDate    String // 'YYYY-MM-DD' (user timezone)
+  endDate      String?
+  nextIndex    Int            @default(0) // index of the next occurrence to process
+  nextRunDate  String? // derived from nextIndex; null once the schedule has finished
+  mode         AutomationMode @default(REMINDER)
+  reminderDaysBefore Int      @default(0)
+  isEnabled    Boolean        @default(true)
+  lastRunAt    DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  owner        User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  account      Account               @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  category     Category?             @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  executions   AutomationExecution[]
+  transactions Transaction[]
+
+  @@index([ownerId])
+  @@index([isEnabled, nextRunDate])
+}
+
+model AutomationExecution {
+  id            String          @id @default(cuid())
+  ownerId       String
+  automationId  String
+  scheduledFor  String // 'YYYY-MM-DD' occurrence date
+  occurrenceKey String          @unique // "<automationId>:<scheduledFor>"
+  status        ExecutionStatus
+  transactionId String?         @unique
+  amount        BigInt
+  error         String?
+  executedAt    DateTime?
+  createdAt     DateTime        @default(now())
+
+  owner       User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  automation  Automation   @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@unique([automationId, scheduledFor])
+  @@index([ownerId, status])
+  @@index([automationId, scheduledFor])
+}

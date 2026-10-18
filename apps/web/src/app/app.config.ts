@@ -1,0 +1,18 @@
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { ApplicationConfig, inject, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { provideRouter, withComponentInputBinding } from '@angular/router';
+import { provideTaiga } from '@taiga-ui/core';
+import { AuthService } from './core/auth/auth.service';
+import { apiInterceptor } from './core/interceptors/api.interceptor';
+import { routes } from './app.routes';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideBrowserGlobalErrorListeners(),
+    provideRouter(routes, withComponentInputBinding()),
+    provideHttpClient(withInterceptors([apiInterceptor])),
+    provideTaiga({ mode: 'dark' }),
+    // restore the session (cookie on web, stored token on Android) before the first route renders
+    provideAppInitializer(() => inject(AuthService).init()),
+  ],
+};

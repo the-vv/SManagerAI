@@ -1,0 +1,11 @@
+# Add to your EXISTING host-level Caddyfile (Cloudflare proxy in front is fine).
+finance.example.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8080
+}
+
+# If your Caddy runs in Docker, instead attach it to the same network and use:
+#   reverse_proxy smanager-web-1:80
+# (and remove the `ports:` mapping from the `web` service).
+#
+# Cloudflare: set SSL/TLS mode to "Full (strict)". Do not cache /api/*.

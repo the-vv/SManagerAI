@@ -1,0 +1,46 @@
+# SManager - production stack. One API instance + static web (Caddy). SQLite lives on a local bind mount.
+# Usage: cp .env.example .env && edit it, then: docker compose up -d --build
+services:
+  api:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: file:/data/smanager.db
+      COOKIE_SECURE: "true"
+    volumes:
+      - ./data:/data          # SQLite database (+ -wal/-shm). Must be a LOCAL disk, never NFS/SMB.
+      - ./backups:/backups    # output of deploy/backup.sh
+    expose:
+      - "3000"                # internal only - not published to the host or the internet
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+    # Do NOT scale this service: several processes must never share one SQLite file / scheduler.
+    deploy:
+      replicas: 1
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      # Bound to loopback: only your host-level Caddy can reach it. Change to a docker network if
+      # your Caddy runs in a container (see docs/DEPLOYMENT.md).
+      - "127.0.0.1:${WEB_PORT:-8080}:80"
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }

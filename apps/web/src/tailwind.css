@@ -1,0 +1,194 @@
+@import '@fontsource-variable/inter';
+@import 'tailwindcss';
+
+/* ------------------------------------------------------------------ design tokens */
+:root {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* dark (default) */
+  --bg: #0a0d14;
+  --bg-elevated: #0f1420;
+  --surface: #121826;
+  --surface-2: #182033;
+  --border: #232c42;
+  --border-strong: #2f3a56;
+  --text: #e8ecf5;
+  --text-muted: #8c97b2;
+  --text-faint: #5d6882;
+
+  --accent: #7c8cff;
+  --accent-strong: #98a5ff;
+  --accent-soft: rgb(124 140 255 / 0.14);
+
+  --income: #34d399;
+  --income-soft: rgb(52 211 153 / 0.12);
+  --expense: #fb7185;
+  --expense-soft: rgb(251 113 133 / 0.12);
+  --balance: #38bdf8;
+  --balance-soft: rgb(56 189 248 / 0.12);
+  --warn: #fbbf24;
+
+  --shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 12px 32px -16px rgb(0 0 0 / 0.6);
+  --radius: 16px;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #f4f6fb;
+  --bg-elevated: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f0f3fa;
+  --border: #e1e6f1;
+  --border-strong: #cdd5e6;
+  --text: #121a2e;
+  --text-muted: #5a6683;
+  --text-faint: #8a94ad;
+
+  --accent: #4f5df0;
+  --accent-strong: #3b48d6;
+  --accent-soft: rgb(79 93 240 / 0.1);
+
+  --income: #059669;
+  --income-soft: rgb(5 150 105 / 0.1);
+  --expense: #e11d48;
+  --expense-soft: rgb(225 29 72 / 0.09);
+  --balance: #0284c7;
+  --balance-soft: rgb(2 132 199 / 0.1);
+  --warn: #b45309;
+
+  --shadow: 0 1px 2px rgb(18 26 46 / 0.04), 0 12px 28px -18px rgb(18 26 46 / 0.25);
+  color-scheme: light;
+}
+
+@theme inline {
+  --font-sans: var(--font-sans);
+  --color-bg: var(--bg);
+  --color-elevated: var(--bg-elevated);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-fg: var(--text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-income: var(--income);
+  --color-income-soft: var(--income-soft);
+  --color-expense: var(--expense);
+  --color-expense-soft: var(--expense-soft);
+  --color-balance: var(--balance);
+  --color-balance-soft: var(--balance-soft);
+  --color-warn: var(--warn);
+}
+
+/* ------------------------------------------------------------------ base */
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+.num { font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+/* Taiga reads --tui-background-base etc.; line the page and Taiga up */
+:root, :root[data-theme='light'] { --tui-font-text: var(--font-sans); --tui-font-heading: var(--font-sans); }
+tui-root { background: transparent; }
+[tuiTheme='dark'] { --tui-background-base: var(--surface); --tui-background-elevation-1: var(--bg); --tui-background-elevation-2: var(--surface-2); }
+
+@layer components {
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  .card-pad { padding: 1.25rem; }
+  .field-label { font-size: 0.75rem; font-weight: 500; color: var(--text-muted); }
+  .chip {
+    display: inline-flex; align-items: center; gap: 0.375rem;
+    border-radius: 9999px; padding: 0.125rem 0.625rem; font-size: 0.75rem; font-weight: 500;
+    background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border);
+  }
+  .btn-ghost {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+    min-height: 40px; min-width: 40px; padding: 0 0.75rem; border-radius: 12px;
+    color: var(--text-muted); background: transparent; border: 1px solid transparent;
+    transition: background-color .15s, color .15s; cursor: pointer; font: inherit; font-size: .875rem;
+  }
+  .btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+  .btn-ghost:focus-visible, .nav-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .nav-link {
+    display: flex; align-items: center; gap: 0.75rem; min-height: 44px; padding: 0 0.75rem;
+    border-radius: 12px; color: var(--text-muted); text-decoration: none; font-size: .9rem; font-weight: 500;
+    transition: background-color .15s, color .15s;
+  }
+  .nav-link:hover { background: var(--surface-2); color: var(--text); }
+  .nav-link.active { background: var(--accent-soft); color: var(--accent-strong); }
+  .seg {
+    display: inline-flex; padding: 3px; gap: 2px; border-radius: 12px;
+    background: var(--surface-2); border: 1px solid var(--border);
+  }
+  .seg button {
+    min-height: 34px; padding: 0 .9rem; border-radius: 9px; border: 0; background: transparent;
+    color: var(--text-muted); font: inherit; font-size: .85rem; font-weight: 500; cursor: pointer;
+    transition: background-color .15s, color .15s;
+  }
+  .seg button[aria-pressed='true'] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+  .input {
+    width: 100%; min-height: 44px; padding: 0 .85rem; border-radius: 12px;
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+    font: inherit; font-size: .95rem; transition: border-color .15s, box-shadow .15s;
+  }
+  .input::placeholder { color: var(--text-faint); }
+  .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  textarea.input { padding: .65rem .85rem; min-height: 84px; resize: vertical; }
+  select.input { appearance: none; background-image: none; padding-right: 2rem; }
+  .input.invalid { border-color: var(--expense); }
+  .error-text { color: var(--expense); font-size: .75rem; margin-top: .25rem; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 44px;
+    padding: 0 1.1rem; border-radius: 12px; font: inherit; font-size: .9rem; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+    transition: transform .1s, background-color .15s, border-color .15s, opacity .15s;
+  }
+  .btn:hover { border-color: var(--border-strong); }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: .55; cursor: not-allowed; }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn-primary {
+    background: var(--accent); border-color: transparent; color: #fff;
+    box-shadow: 0 8px 20px -10px var(--accent);
+  }
+  .btn-primary:hover { background: var(--accent-strong); border-color: transparent; }
+  .btn-danger { background: var(--expense-soft); border-color: transparent; color: var(--expense); }
+  .btn-sm { min-height: 36px; padding: 0 .8rem; font-size: .8rem; border-radius: 10px; }
+  /* Save/Cancel row of modal forms: stays visible at the bottom while the form scrolls. */
+  .dialog-actions {
+    position: sticky; bottom: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
+    margin: .25rem -1.75rem -1.75rem; padding: .875rem 1.75rem calc(1.25rem + env(safe-area-inset-bottom));
+    background: var(--tui-background-elevation-1, var(--bg-elevated));
+    border-top: 1px solid var(--border);
+  }
+  .skeleton {
+    background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 37%, var(--surface-2) 63%);
+    background-size: 400% 100%; animation: shimmer 1.4s ease infinite; border-radius: 10px;
+  }
+  .overlay { position: fixed; inset: 0; background: rgb(3 6 14 / 0.6); backdrop-filter: blur(3px); z-index: 60; animation: fade .15s ease; }
+  .sheet {
+    position: fixed; z-index: 61; background: var(--bg-elevated); border: 1px solid var(--border);
+    box-shadow: 0 30px 80px -20px rgb(0 0 0 / .6); display: flex; flex-direction: column; max-height: 92dvh;
+  }
+}
+@keyframes shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise .28s cubic-bezier(.2,.7,.2,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
