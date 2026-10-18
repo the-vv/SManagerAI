@@ -3,6 +3,7 @@
 name: smanagerai   # containers become smanagerai-api-1 / smanagerai-web-1
 services:
   api:
+    image: ${DOCKER_USERNAME:-local}/smanagerai-api:latest   # pushed by .github/workflows/deploy.yml
     build:
       context: .
       dockerfile: deploy/Dockerfile.api
@@ -31,6 +32,7 @@ services:
       replicas: 1
 
   web:
+    image: ${DOCKER_USERNAME:-local}/smanagerai-web:latest
     build:
       context: .
       dockerfile: deploy/Dockerfile.web
