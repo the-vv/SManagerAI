@@ -89,6 +89,7 @@ model User {
   passwordHash String?
   googleId     String?  @unique
   isAdmin      Boolean  @default(false) // may create invites; the first account ever created is the admin
+  aiDailyLimit Int?     // admin-set AI entries per day for this user; null = use the default (AI_DAILY_LIMIT)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

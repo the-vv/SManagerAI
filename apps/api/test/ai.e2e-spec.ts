@@ -369,6 +369,26 @@ describe('AI smart entry', () => {
     } finally { ctx.app.get(AiService)['config'].ai.dailyLimit = saved; }
   });
 
+  it('lets only an admin set a custom daily limit per user, with null returning to the default', async () => {
+    const saved = ctx.app.get(AiService)['config'].ai.dailyLimit;
+    ctx.app.get(AiService)['config'].ai.dailyLimit = 3;
+    try {
+      const bId = (await b.get('/api/auth/me')).body.user?.id ?? (await b.get('/api/auth/me')).body.id;
+      expect((await b.get('/api/ai/limits')).status).toBe(403);
+      expect((await b.patch(`/api/ai/limits/${bId}`).send({ dailyLimit: 9 })).status).toBe(403);
+      const aId = (await a.get('/api/auth/me')).body.user?.id ?? (await a.get('/api/auth/me')).body.id;
+      await ctx.prisma.user.update({ where: { id: aId }, data: { isAdmin: true } });
+      const set = await a.patch(`/api/ai/limits/${bId}`).send({ dailyLimit: 7 });
+      expect(set.status).toBe(200);
+      expect(set.body.defaultLimit).toBe(3);
+      expect(set.body.users.find((u: { id: string }) => u.id === bId)).toMatchObject({ customLimit: 7, effectiveLimit: 7 });
+      expect((await b.get('/api/ai/status')).body).toMatchObject({ dailyLimit: 7, remaining: 7 });
+      expect((await a.get('/api/ai/status')).body.dailyLimit).toBe(3);
+      await a.patch(`/api/ai/limits/${bId}`).send({ dailyLimit: null });
+      expect((await b.get('/api/ai/status')).body.dailyLimit).toBe(3);
+    } finally { ctx.app.get(AiService)['config'].ai.dailyLimit = saved; }
+  });
+
   describe('AI unavailable / not configured', () => {
     it('manual entry keeps working while the AI server is down', async () => {
       model = () => { throw new AiUnavailableError('down'); };

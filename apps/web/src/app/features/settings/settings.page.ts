@@ -13,12 +13,13 @@ import { SessionInfo, Settings } from '../../shared/models/api.models';
 import { CURRENCIES, LOCALES, TIMEZONES } from '../../shared/models/constants';
 import { SmDatePipe } from '../../shared/pipes/format.pipes';
 import { AccountsApi } from '../accounts/accounts.api';
+import { AiLimitsSection } from './ai-limits.section';
 import { InvitesSection } from './invites.section';
 import { SelectComponent } from '../../shared/components/select.component';
 
 @Component({
   selector: 'sm-settings-page',
-  imports: [PageHeaderComponent, ReactiveFormsModule, TuiSwitch, SmDatePipe, RouterLink, SelectComponent, InvitesSection],
+  imports: [PageHeaderComponent, ReactiveFormsModule, TuiSwitch, SmDatePipe, RouterLink, SelectComponent, InvitesSection, AiLimitsSection],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <sm-page-header title="Settings" />
@@ -88,7 +89,7 @@ import { SelectComponent } from '../../shared/components/select.component';
         </p>
       </section>
 
-      @if (auth.user()?.isAdmin) { <sm-invites-section /> }
+      @if (auth.user()?.isAdmin) { <sm-ai-limits-section /> <sm-invites-section /> }
 
       <section class="card card-pad rise">
         <h2 class="m-0 mb-3 text-base font-semibold">Sessions</h2>

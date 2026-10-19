@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsInt, IsIn, IsNotEmpty, IsOptional, Max, Min, IsString, MaxLength } from 'class-validator';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
@@ -12,4 +12,9 @@ export class ClassifyTransactionDto {
 
 export class ListJobsQuery {
   @IsOptional() @IsIn(['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED']) status?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+}
+
+export class SetAiLimitDto {
+  /** Entries per day; null resets the user to the default. */
+  @IsOptional() @IsInt() @Min(0) @Max(100000) dailyLimit?: number | null;
 }
