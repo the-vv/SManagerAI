@@ -22,6 +22,9 @@ export interface Invite {
 /** Returned once, when an invite is created: the only time the plain code exists. */
 export interface NewInvite { id: string; code: string; note: string | null; createdAt: string; expiresAt: string; }
 
+export interface AiLimitUser { id: string; name: string; email: string; isAdmin: boolean; customLimit: number | null; effectiveLimit: number; used: number; }
+export interface AiLimits { defaultLimit: number; users: AiLimitUser[]; }
+
 export interface AuthResult { user: User; expiresAt: string; token?: string; }
 
 export interface SessionInfo {

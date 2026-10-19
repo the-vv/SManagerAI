@@ -1,4 +1,4 @@
-import { BadRequestException, HttpException, HttpStatus, Inject, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, Inject, NotFoundException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { APP_CONFIG, AppConfig } from '../common/config.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { DateTime } from 'luxon';
@@ -31,8 +31,30 @@ export class AiService {
   async allowance(userId: string) {
     const tz = await this.settings.timezone(userId);
     const used = await this.queue.countSince(userId, DateTime.now().setZone(tz).startOf('day').toUTC().toJSDate());
-    const limit = this.config.ai.dailyLimit;
+    const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { aiDailyLimit: true } });
+    const limit = u?.aiDailyLimit ?? this.config.ai.dailyLimit;
     return { enabled: this.enabled, dailyLimit: limit, used, remaining: Math.max(0, limit - used) };
+  }
+
+  /** Admin view: every user with their custom limit (null = default), the effective limit and today's usage. */
+  async limits() {
+    const users = await this.prisma.user.findMany({
+      orderBy: { createdAt: 'asc' }, select: { id: true, name: true, email: true, isAdmin: true, aiDailyLimit: true },
+    });
+    const rows = [];
+    for (const { aiDailyLimit, ...u } of users) {
+      const since = DateTime.now().setZone(await this.settings.timezone(u.id)).startOf('day').toUTC().toJSDate();
+      rows.push({ ...u, customLimit: aiDailyLimit, effectiveLimit: aiDailyLimit ?? this.config.ai.dailyLimit, used: await this.queue.countSince(u.id, since) });
+    }
+    return { defaultLimit: this.config.ai.dailyLimit, users: rows };
+  }
+
+  /** `null` puts the user back on the default. */
+  async setLimit(userId: string, dailyLimit: number | null) {
+    const exists = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!exists) throw new NotFoundException('User not found');
+    await this.prisma.user.update({ where: { id: userId }, data: { aiDailyLimit: dailyLimit } });
+    return this.limits();
   }
 
   /** Validates and queues. Never calls the model. */
