@@ -6,8 +6,9 @@ import { AccountFormDialog } from '../../features/accounts/account-form.dialog';
 import { AdjustDialog, TransferDialog } from '../../features/accounts/adjust-transfer.dialogs';
 import { AutomationFormDialog } from '../../features/automations/automation-form.dialog';
 import { CategoryFormDialog } from '../../features/categories/category-form.dialog';
+import { EventFormDialog } from '../../features/events/event-form.dialog';
 import { TransactionFormDialog, TxFormData } from '../../features/transactions/transaction-form.dialog';
-import { Account, Automation, Category, Transaction } from '../../shared/models/api.models';
+import { Account, Automation, Category, TrackEvent, Transaction } from '../../shared/models/api.models';
 import { RefData } from './ref-data.store';
 
 /** Opens the app's modal forms. Every method resolves to `true` when something was saved. */
@@ -20,6 +21,7 @@ export class Dialogs {
   private readonly adjustDialog = tuiDialog(AdjustDialog, { size: 's', closable: true, dismissible: true });
   private readonly transferDialog = tuiDialog(TransferDialog, { size: 'm', closable: true, dismissible: true });
   private readonly categoryDialog = tuiDialog(CategoryFormDialog, { size: 's', closable: true, dismissible: true });
+  private readonly eventDialog = tuiDialog(EventFormDialog, { size: 's', closable: true, dismissible: true });
   private readonly automationDialog = tuiDialog(AutomationFormDialog, { size: 'm', closable: true, dismissible: true });
 
   private async run(open: Promise<boolean | undefined>, refresh: () => Promise<unknown> | void): Promise<boolean> {
@@ -52,6 +54,9 @@ export class Dialogs {
   }
   category(data: { category?: Category; type?: 'INCOME' | 'EXPENSE' } = {}): Promise<boolean> {
     return this.run(firstValueFrom(this.categoryDialog(data), { defaultValue: false }), () => this.refreshAll());
+  }
+  event(event?: TrackEvent): Promise<boolean> {
+    return this.run(firstValueFrom(this.eventDialog(event), { defaultValue: false }), () => firstValueFrom(this.ref.refreshEvents()));
   }
   automation(automation?: Automation): Promise<boolean> {
     return this.run(firstValueFrom(this.automationDialog(automation), { defaultValue: false }), () => this.refreshAll());

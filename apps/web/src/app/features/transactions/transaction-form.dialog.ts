@@ -20,6 +20,7 @@ export interface TxFormData {
   transaction?: Transaction;
   kind?: 'INCOME' | 'EXPENSE';
   accountId?: string;
+  eventId?: string;
   /** Pre-filled from an AI queue entry; saving links the new transaction to that entry (idempotent). */
   prefill?: { title: string; amount: number | null; kind?: 'INCOME' | 'EXPENSE'; categoryId: string | null; aiJobId?: string };
 }
@@ -60,6 +61,12 @@ export interface TxFormData {
           <label class="field-label" for="tx-acc">Account</label>
           <sm-select inputId="tx-acc" formControlName="accountId" [options]="accountOpts()" />
         </div>
+        @if (eventOpts().length > 1) {
+          <div class="sm:col-span-2">
+            <label class="field-label" for="tx-event">Event / trip</label>
+            <sm-select inputId="tx-event" formControlName="eventId" [options]="eventOpts()" />
+          </div>
+        }
         <div>
           <label class="field-label" for="tx-date">Date</label>
           <sm-date inputId="tx-date" formControlName="date" />
@@ -133,6 +140,7 @@ export class TransactionFormDialog {
     amount: this.fb.control<number | null>(null, [Validators.required, Validators.min(1)]),
     title: this.fb.control('', [Validators.required, Validators.pattern(/\S/)]),
     categoryId: this.fb.control<string | null>(null),
+    eventId: this.fb.control<string | null>(null),
     accountId: this.fb.control('', Validators.required),
     date: this.fb.control('', Validators.required),
     time: this.fb.control('00:00'),
@@ -144,6 +152,12 @@ export class TransactionFormDialog {
 
   protected readonly kind = signal<'INCOME' | 'EXPENSE'>(this.context.data?.kind ?? this.settings.settings().defaultTxKind);
   protected readonly categoryOpts = computed(() => [{ value: null as string | null, label: 'Uncategorized' }, ...this.categories().map((c) => ({ value: c.id as string | null, label: c.name }))]);
+  /** Active events, plus the one this transaction already has even if it was closed since. */
+  protected readonly eventOpts = computed(() => {
+    const keep = this.context.data?.transaction?.event;
+    const list = this.ref.events().filter((e) => e.isActive || e.id === keep?.id);
+    return [{ value: null as string | null, label: 'None' }, ...list.map((e) => ({ value: e.id as string | null, label: e.name }))];
+  });
   protected readonly categories = computed(() => (this.kind() === 'INCOME' ? this.ref.incomeCategories() : this.ref.expenseCategories()));
 
   constructor() {
@@ -153,13 +167,14 @@ export class TransactionFormDialog {
     if (tx) {
       this.kind.set(tx.kind === 'INCOME' ? 'INCOME' : 'EXPENSE');
       this.form.patchValue({
-        amount: tx.amount, title: tx.title, categoryId: tx.category?.id ?? null, accountId: tx.account.id,
+        amount: tx.amount, title: tx.title, categoryId: tx.category?.id ?? null, eventId: tx.event?.id ?? null, accountId: tx.account.id,
         date: dateKey(tx.occurredAt, tz), time: timeKey(tx.occurredAt, tz), notes: tx.notes ?? '',
       });
     } else {
       const pre = this.context.data?.prefill;
       this.form.patchValue({
         accountId: this.context.data?.accountId ?? this.ref.defaultAccount()?.id ?? '',
+        eventId: this.context.data?.eventId ?? null,
         date: dateKey(now, tz), time: timeKey(now, tz),
         ...(pre ? { title: pre.title, amount: pre.amount, categoryId: pre.categoryId } : {}),
       });
@@ -180,7 +195,7 @@ export class TransactionFormDialog {
     const v = this.form.getRawValue();
     const occurredAt = zonedToUtc(v.date, v.time || '00:00', this.settings.tz()).toISOString();
     const body: TxInput = {
-      title: v.title.trim(), amount: v.amount!, kind: this.kind(), categoryId: v.categoryId,
+      title: v.title.trim(), amount: v.amount!, kind: this.kind(), categoryId: v.categoryId, eventId: v.eventId,
       accountId: v.accountId, occurredAt, notes: v.notes.trim() || (this.editing ? null : undefined),
     };
     if (!this.editing && this.context.data?.prefill?.aiJobId) body.aiJobId = this.context.data.prefill.aiJobId;

@@ -103,6 +103,8 @@ model User {
   automations Automation[]
   executions  AutomationExecution[]
   aiJobs      AiJob[]
+  events      Event[]
+  people      Person[]
   invitesCreated Invite[]
 }
 
@@ -219,6 +221,7 @@ model Transaction {
   transferId  String?
   automationId String?
   occurrenceDate String? // 'YYYY-MM-DD' of the automation occurrence that produced it
+  eventId     String?
   aiJobId     String?           @unique // AI Smart Entry job this was saved from; makes a retried save idempotent
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
@@ -228,6 +231,7 @@ model Transaction {
   category   Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   transfer   Transfer?   @relation(fields: [transferId], references: [id], onDelete: Cascade)
   automation Automation? @relation(fields: [automationId], references: [id], onDelete: SetNull)
+  event      Event?      @relation(fields: [eventId], references: [id], onDelete: SetNull)
   execution  AutomationExecution?
 
   // A given automation occurrence can produce at most one transaction.
@@ -236,6 +240,75 @@ model Transaction {
   @@index([ownerId, accountId, occurredAt])
   @@index([ownerId, categoryId, occurredAt])
   @@index([transferId])
+  @@index([ownerId, eventId])
+}
+
+/// A named bucket ("Ooty trip") that transactions can be tagged with, to track its spending on its own.
+model Event {
+  id        String    @id @default(cuid())
+  ownerId   String
+  name      String
+  notes     String?
+  startDate String? // 'YYYY-MM-DD', informational
+  endDate   String?
+  budget    BigInt? // minor units; optional spending target
+  isActive  Boolean   @default(true)
+  shareToken        String?  @unique // secret in the public link; kept while sharing is switched off
+  shareEnabled      Boolean  @default(false)
+  allowGuestExpenses Boolean @default(false) // anyone with the link may add their own expenses
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  people       EventPerson[]
+  expenses     EventExpense[]
+
+  @@unique([ownerId, name])
+}
+
+/// Someone else who shares costs with the owner. Reusable across events.
+model Person {
+  id        String   @id @default(cuid())
+  ownerId   String
+  name      String
+  createdAt DateTime @default(now())
+
+  owner    User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  events   EventPerson[]
+  expenses EventExpense[]
+
+  @@unique([ownerId, name])
+}
+
+/// Who takes part in an event (besides the owner).
+model EventPerson {
+  eventId  String
+  personId String
+
+  event  Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, personId])
+}
+
+/// Something another person paid for in an event. Deliberately NOT a Transaction: it never touches the owner's accounts.
+model EventExpense {
+  id         String   @id @default(cuid())
+  ownerId    String
+  eventId    String
+  personId   String
+  title      String
+  amount     BigInt // > 0, minor units
+  occurredAt DateTime
+  notes      String?
+  addedByGuest Boolean @default(false) // added through the public link
+  createdAt  DateTime @default(now())
+
+  event  Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, occurredAt])
 }
 
 model BalanceAdjustment {

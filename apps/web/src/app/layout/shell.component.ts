@@ -15,6 +15,7 @@ const NAV: NavItem[] = [
   { path: '/transactions', label: 'Transactions', icon: '@tui.arrow-left-right' },
   { path: '/accounts', label: 'Accounts', icon: '@tui.wallet' },
   { path: '/categories', label: 'Categories', icon: '@tui.tags' },
+  { path: '/events', label: 'Events', icon: '@tui.map-pin' },
   { path: '/automations', label: 'Automations', icon: '@tui.repeat' },
   { path: '/reports', label: 'Reports', icon: '@tui.chart-column' },
   { path: '/settings', label: 'Settings', icon: '@tui.settings' },

@@ -54,9 +54,12 @@ export interface Transaction {
   occurredAt: string; source: TransactionSource; automationId: string | null; aiGenerated: boolean;
   account: { id: string; name: string; color: string | null };
   category: { id: string; name: string; color: string | null; icon: string | null } | null;
+  event: TxEvent | null;
   transfer: { id: string; fromAccountId: string; toAccountId: string; fromAccountName: string; toAccountName: string } | null;
   createdAt: string; updatedAt: string;
 }
+
+export interface TxEvent { id: string; name: string; }
 
 export interface TxSummary { income: number; expense: number; net: number; count: number; }
 
@@ -153,4 +156,27 @@ export interface Report {
 
 export interface ApiErrorBody {
   statusCode: number; error: string; message: string; details?: string[]; path: string; timestamp: string;
+}
+
+/** A named bucket ("Ooty trip") transactions can be tagged with. */
+export interface TrackEvent {
+  shareEnabled: boolean; allowGuestExpenses: boolean; shareToken: string | null;
+  id: string; name: string; notes: string | null; startDate: string | null; endDate: string | null;
+  budget: number | null; isActive: boolean;
+}
+export interface TrackEventSummary extends TrackEvent { income: number; expense: number; count: number; othersExpense: number; }
+export interface Person { id: string; name: string; }
+export interface EventMember { personId: string | null; name: string; spent: number; share: number; balance: number; }
+export interface EventExpense { id: string; title: string; amount: number; notes: string | null; occurredAt: string; person: Person; addedByGuest: boolean; }
+export interface TrackEventDetail extends TrackEventSummary {
+  net: number; firstAt: string | null; lastAt: string | null;
+  totalCost: number; members: EventMember[]; expenses: EventExpense[];
+  categories: Array<{ categoryId: string | null; name: string; color: string | null; total: number; count: number }>;
+}
+
+/** What a shared link shows to anyone. */
+export interface PublicEvent {
+  name: string; notes: string | null; startDate: string | null; endDate: string | null; isActive: boolean; canAddExpenses: boolean;
+  ownerName: string; totalCost: number; members: Array<EventMember & { isOwner: boolean }>;
+  expenses: Array<{ title: string; amount: number; occurredAt: string; personName: string }>;
 }

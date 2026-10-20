@@ -77,6 +77,8 @@ type KindFilter = '' | 'INCOME' | 'EXPENSE' | 'TRANSFER';
           <sm-select [options]="accountOpts()" [value]="accountId()" (valueChange)="accountId.set($event ?? '')" /></label>
         <label class="flex flex-col gap-1"><span class="field-label">Category</span>
           <sm-select [options]="categoryOpts()" [value]="categoryId()" (valueChange)="categoryId.set($event ?? '')" /></label>
+        <label class="flex flex-col gap-1"><span class="field-label">Event / trip</span>
+          <sm-select [options]="eventFilterOpts()" [value]="eventId()" (valueChange)="eventId.set($event ?? '')" /></label>
         <label class="flex flex-col gap-1"><span class="field-label">Origin</span>
           <sm-select [options]="originOpts" [value]="origin()" (valueChange)="origin.set($event ?? '')" /></label>
         <label class="flex flex-col gap-1"><span class="field-label">Sort by</span>
@@ -156,6 +158,8 @@ export class TransactionsPage {
   protected readonly kind = signal<KindFilter>('');
   protected readonly accountId = signal('');
   protected readonly categoryId = signal('');
+  protected readonly eventId = signal('');
+  protected readonly eventFilterOpts = computed(() => [{ value: '', label: 'All events' }, ...this.ref.events().map((e) => ({ value: e.id, label: e.name }))]);
   protected readonly origin = signal('');
   protected readonly q = signal('');
   protected readonly sort = signal('date:desc');
@@ -169,7 +173,7 @@ export class TransactionsPage {
   private searchTimer?: ReturnType<typeof setTimeout>;
 
   protected readonly filtersOpen = signal(false);
-  protected readonly activeCount = computed(() => [this.kind(), this.accountId(), this.categoryId(), this.origin()].filter(Boolean).length);
+  protected readonly activeCount = computed(() => [this.kind(), this.accountId(), this.categoryId(), this.eventId(), this.origin()].filter(Boolean).length);
   protected readonly subtitle = computed(() => {
     const t = this.page()?.total;
     return t === undefined ? '' : `${t} ${t === 1 ? 'transaction' : 'transactions'}`;
@@ -183,13 +187,13 @@ export class TransactionsPage {
     const start = (p.page - 1) * p.pageSize + 1;
     return `${start}–${start + p.items.length - 1} of ${p.total}`;
   });
-  protected readonly hasFilters = computed(() => !!(this.kind() || this.accountId() || this.categoryId() || this.origin() || this.q()));
+  protected readonly hasFilters = computed(() => !!(this.kind() || this.accountId() || this.categoryId() || this.eventId() || this.origin() || this.q()));
 
   private readonly query = computed<TxQuery>(() => {
     const [sort, dir] = this.sort().split(':');
     return {
       ...(this.mode() === 'month' ? { month: this.month() } : { from: this.from(), to: this.to() }),
-      kind: this.kind(), accountId: this.accountId(), categoryId: this.categoryId(), origin: this.origin(),
+      kind: this.kind(), accountId: this.accountId(), categoryId: this.categoryId(), eventId: this.eventId(), origin: this.origin(),
       q: this.q(), sort, dir,
     };
   });
@@ -213,7 +217,7 @@ export class TransactionsPage {
     this.searchTimer = setTimeout(() => this.q.set(v.trim()), 300);
   }
   protected clear(): void {
-    this.kind.set(''); this.accountId.set(''); this.categoryId.set(''); this.origin.set(''); this.q.set('');
+    this.kind.set(''); this.accountId.set(''); this.categoryId.set(''); this.eventId.set(''); this.origin.set(''); this.q.set('');
   }
 
   protected async add(): Promise<void> { if (await this.dialogs.transaction({ accountId: this.accountId() || undefined })) this.load(); }

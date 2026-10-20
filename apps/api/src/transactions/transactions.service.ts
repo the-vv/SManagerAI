@@ -16,6 +16,7 @@ import { buildTxWhere, TxFilter } from './filters.js';
 const INCLUDE = {
   account: { select: { id: true, name: true, color: true } },
   category: { select: { id: true, name: true, color: true, icon: true } },
+  event: { select: { id: true, name: true } },
   transfer: {
     select: {
       id: true, fromAccountId: true, toAccountId: true,
@@ -32,7 +33,7 @@ export function txView(r: Row) {
     occurredAt: r.occurredAt, source: r.source, automationId: r.automationId,
     /** created from (or with the help of) an AI Smart Entry */
     aiGenerated: r.aiJobId !== null,
-    account: r.account, category: r.category,
+    account: r.account, category: r.category, event: r.event,
     transfer: r.transfer
       ? {
           id: r.transfer.id, fromAccountId: r.transfer.fromAccountId, toAccountId: r.transfer.toAccountId,
@@ -135,7 +136,7 @@ export class TransactionsService {
     try {
       return await this.prisma.$transaction(async (tx) => {
         const row = await this.writer.record(tx, ownerId, {
-          accountId, categoryId: dto.categoryId, kind: dto.kind, amount: dto.amount,
+          accountId, categoryId: dto.categoryId, eventId: dto.eventId, kind: dto.kind, amount: dto.amount,
           title: dto.title, notes: dto.notes, occurredAt, aiJobId: dto.aiJobId,
         });
         if (dto.automation) {
@@ -182,11 +183,12 @@ export class TransactionsService {
         if (dto.categoryId === undefined && dto.kind && dto.kind !== existing.kind) categoryId = null;
         else await this.writer.assertCategory(tx, ownerId, categoryId, kind);
       }
+      if (dto.eventId) await this.writer.assertEvent(tx, ownerId, dto.eventId);
       await tx.transaction.update({
         where: { id },
         data: {
           title: dto.title?.trim(), amount: dto.amount === undefined ? undefined : big(dto.amount), kind,
-          notes: dto.notes === undefined ? undefined : dto.notes || null, occurredAt, accountId, categoryId,
+          notes: dto.notes === undefined ? undefined : dto.notes || null, occurredAt, accountId, categoryId, eventId: dto.eventId,
         },
       });
     });
@@ -211,13 +213,13 @@ export class TransactionsService {
       r.kind === 'INCOME' ? 'Income' : r.kind === 'EXPENSE' ? 'Expense'
         : r.kind === 'TRANSFER_IN' ? 'Transfer in' : 'Transfer out';
     return toCsv(
-      ['Date', 'Time', 'Type', 'Title', 'Amount', 'Account', 'Category', 'Notes', 'Origin'],
+      ['Date', 'Time', 'Type', 'Title', 'Amount', 'Account', 'Category', 'Event', 'Notes', 'Origin'],
       rows.map((r) => {
         const dt = DateTime.fromJSDate(r.occurredAt, { zone: tz });
         const signed = r.kind === 'INCOME' || r.kind === 'TRANSFER_IN' ? r.amount : -r.amount;
         return [
           dt.toFormat('yyyy-MM-dd'), dt.toFormat('HH:mm'), typeLabel(r), r.title,
-          minorToDecimalString(signed), r.account.name, r.category?.name ?? '', r.notes ?? '',
+          minorToDecimalString(signed), r.account.name, r.category?.name ?? '', r.event?.name ?? '', r.notes ?? '',
           r.source === 'MANUAL' ? 'Manual' : r.source === 'AUTOMATION_AUTO' ? 'Automatic' : 'Confirmed reminder',
         ];
       }),

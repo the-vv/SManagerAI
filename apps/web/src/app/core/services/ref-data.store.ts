@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, forkJoin, tap } from 'rxjs';
 import { ApiClient } from '../api/api.client';
-import { Account, AccountsOverview, Category, Notifications } from '../../shared/models/api.models';
+import { Account, AccountsOverview, Category, Notifications, TrackEventSummary } from '../../shared/models/api.models';
 
 /** Reference data used by many screens (accounts, categories, notifications). Loaded once, refreshed after changes. */
 @Injectable({ providedIn: 'root' })
@@ -10,19 +10,21 @@ export class RefData {
 
   readonly overview = signal<AccountsOverview | null>(null);
   readonly categories = signal<Category[]>([]);
+  readonly events = signal<TrackEventSummary[]>([]);
   readonly notifications = signal<Notifications>({ pending: [], dueSoon: [] });
   readonly loaded = signal(false);
 
   readonly accounts = computed<Account[]>(() => this.overview()?.items ?? []);
   readonly activeAccounts = computed(() => this.accounts().filter((a) => a.isActive));
   readonly defaultAccount = computed(() => this.activeAccounts().find((a) => a.isDefault) ?? this.activeAccounts()[0] ?? null);
+  readonly activeEvents = computed(() => this.events().filter((e) => e.isActive));
   readonly activeCategories = computed(() => this.categories().filter((c) => c.isActive));
   readonly expenseCategories = computed(() => this.activeCategories().filter((c) => c.type === 'EXPENSE'));
   readonly incomeCategories = computed(() => this.activeCategories().filter((c) => c.type === 'INCOME'));
   readonly notificationCount = computed(() => this.notifications().pending.length + this.notifications().dueSoon.length);
 
   loadAll(): Observable<unknown> {
-    return forkJoin([this.refreshAccounts(), this.refreshCategories(), this.refreshNotifications()]).pipe(
+    return forkJoin([this.refreshAccounts(), this.refreshCategories(), this.refreshEvents(), this.refreshNotifications()]).pipe(
       tap(() => this.loaded.set(true)),
     );
   }
@@ -32,11 +34,14 @@ export class RefData {
   refreshCategories(): Observable<Category[]> {
     return this.api.get<Category[]>('/categories', { includeInactive: true }).pipe(tap((c) => this.categories.set(c)));
   }
+  refreshEvents(): Observable<TrackEventSummary[]> {
+    return this.api.get<TrackEventSummary[]>('/events').pipe(tap((e) => this.events.set(e)));
+  }
   refreshNotifications(): Observable<Notifications> {
     return this.api.get<Notifications>('/automations/notifications').pipe(tap((n) => this.notifications.set(n)));
   }
   accountById(id: string | null | undefined): Account | undefined { return this.accounts().find((a) => a.id === id); }
   reset(): void {
-    this.overview.set(null); this.categories.set([]); this.notifications.set({ pending: [], dueSoon: [] }); this.loaded.set(false);
+    this.overview.set(null); this.categories.set([]); this.events.set([]); this.notifications.set({ pending: [], dueSoon: [] }); this.loaded.set(false);
   }
 }
