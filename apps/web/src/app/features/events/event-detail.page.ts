@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, input, signal, effect } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { TuiIcon, tuiDialog } from '@taiga-ui/core';
 import { TuiSwitch } from '@taiga-ui/kit';
@@ -8,7 +9,7 @@ import { Dialogs } from '../../core/services/dialogs.service';
 import { RefData } from '../../core/services/ref-data.store';
 import { Toast } from '../../core/services/toast.service';
 import { ConfirmService } from '../../shared/components/confirm.service';
-import { EmptyStateComponent, PageHeaderComponent } from '../../shared/components/ui.components';
+import { EmptyStateComponent } from '../../shared/components/ui.components';
 import { EventExpense, Person, TrackEventDetail, Transaction, TransactionPage } from '../../shared/models/api.models';
 import { MoneyPipe } from '../../shared/pipes/format.pipes';
 import { AuthService } from '../../core/auth/auth.service';
@@ -17,17 +18,22 @@ import { TransactionListComponent } from '../transactions/transaction-list.compo
 
 @Component({
   selector: 'sm-event-detail-page',
-  imports: [PageHeaderComponent, EmptyStateComponent, TransactionListComponent, TuiIcon, TuiSwitch, RouterLink, MoneyPipe],
+  imports: [EmptyStateComponent, TransactionListComponent, FormsModule, TuiIcon, TuiSwitch, RouterLink, MoneyPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <a routerLink="/events" class="mb-2 inline-flex items-center gap-1 text-sm text-muted no-underline"><tui-icon icon="@tui.chevron-left" /> All events</a>
     @if (ev(); as e) {
-      <sm-page-header [title]="e.name" [subtitle]="subtitle(e)">
-        <button type="button" class="btn btn-primary" (click)="add()" [disabled]="!e.isActive"><tui-icon icon="@tui.plus" /> Add transaction</button>
-        <button type="button" class="btn" (click)="edit(e)">Edit</button>
-        <button type="button" class="btn" (click)="toggle(e)">{{ e.isActive ? 'Close' : 'Reopen' }}</button>
-        <button type="button" class="btn-ghost" aria-label="Delete event" (click)="remove(e)"><tui-icon icon="@tui.trash" /></button>
-      </sm-page-header>
+      <!-- own header: four actions would squeeze the title to nothing in the shared one on phones -->
+      <header class="mb-5">
+        <h1 class="m-0 text-2xl font-semibold tracking-tight break-words">{{ e.name }}</h1>
+        <p class="m-0 mt-1 text-sm text-muted">{{ subtitle(e) }}</p>
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <button type="button" class="btn btn-primary whitespace-nowrap" (click)="add()" [disabled]="!e.isActive"><tui-icon icon="@tui.plus" /> Add<span class="hidden sm:inline">&nbsp;transaction</span></button>
+          <button type="button" class="btn" (click)="edit(e)">Edit</button>
+          <button type="button" class="btn" (click)="toggle(e)">{{ e.isActive ? 'Close' : 'Reopen' }}</button>
+          <button type="button" class="btn-ghost" aria-label="Delete event" (click)="remove(e)"><tui-icon icon="@tui.trash" /></button>
+        </div>
+      </header>
 
       <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div class="card card-pad"><div class="text-xs text-muted">Spent</div><div class="num text-xl font-semibold text-expense">{{ e.expense | money }}</div></div>
@@ -44,7 +50,7 @@ import { TransactionListComponent } from '../transactions/transaction-list.compo
         <p class="m-0 mb-3 text-sm text-muted">Anyone with the link can see the shares and who owes what. They never see your accounts or transactions.</p>
         <label class="flex cursor-pointer items-center justify-between gap-3 text-sm font-medium">
           Public link
-          <input type="checkbox" tuiSwitch [checked]="e.shareEnabled" (change)="setSharing({ enabled: $any($event.target).checked })" />
+          <input type="checkbox" tuiSwitch name="share-enabled" [ngModel]="e.shareEnabled" (ngModelChange)="setSharing({ enabled: $event })" />
         </label>
         @if (e.shareEnabled) {
           @if (shareLink(e); as l) {
@@ -55,7 +61,7 @@ import { TransactionListComponent } from '../transactions/transaction-list.compo
           }
           <label class="mt-3 flex cursor-pointer items-center justify-between gap-3 text-sm font-medium">
             <span>Let people with the link add their own expenses<span class="block text-xs font-normal text-muted">They are added as participants and shown with a “link” tag.</span></span>
-            <input type="checkbox" tuiSwitch [checked]="e.allowGuestExpenses" (change)="setSharing({ allowGuestExpenses: $any($event.target).checked })" />
+            <input type="checkbox" tuiSwitch name="share-guests" [ngModel]="e.allowGuestExpenses" (ngModelChange)="setSharing({ allowGuestExpenses: $event })" />
           </label>
           <button type="button" class="btn btn-sm mt-3" (click)="rotate()">Create a new link (old one stops working)</button>
         }
