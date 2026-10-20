@@ -1,10 +1,11 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsISO8601, IsNotEmpty, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import { big, MAX_AMOUNT_MINOR, num } from '../common/money.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { Event } from '../generated/prisma/client.js';
 import { LedgerService } from '../ledger/ledger.service.js';
+import { assertSaneInstant } from '../ledger/transaction-writer.js';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -16,6 +17,30 @@ export class CreateEventDto {
   @IsOptional() @Matches(DATE) endDate?: string;
   /** Minor units. */
   @IsOptional() @IsInt() @Min(1) @Max(MAX_AMOUNT_MINOR) budget?: number;
+}
+
+export class CreateExpenseDto {
+  @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(120) title: string;
+  @IsInt() @Min(1) @Max(MAX_AMOUNT_MINOR) amount: number;
+  /** An existing person... */
+  @IsOptional() @IsString() personId?: string;
+  /** ...or a new one, created (or matched by name) on the spot. */
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(60) personName?: string;
+  @IsOptional() @IsISO8601() occurredAt?: string;
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(500) notes?: string;
+}
+
+export class UpdateExpenseDto {
+  @IsOptional() @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(120) title?: string;
+  @IsOptional() @IsInt() @Min(1) @Max(MAX_AMOUNT_MINOR) amount?: number;
+  @IsOptional() @IsString() personId?: string;
+  @IsOptional() @IsISO8601() occurredAt?: string;
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(500) notes?: string | null;
+}
+
+export class AddPersonDto {
+  @IsOptional() @IsString() personId?: string;
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(60) name?: string;
 }
 
 export class UpdateEventDto {
@@ -44,10 +69,11 @@ export class EventsService {
         by: ['eventId', 'kind'], where: { ownerId, eventId: { not: null } }, _sum: { amount: true }, _count: { _all: true },
       }),
     ]);
+    const others = await this.prisma.eventExpense.groupBy({ by: ['eventId'], where: { ownerId }, _sum: { amount: true } });
     return events.map((e) => {
       const mine = sums.filter((s) => s.eventId === e.id);
       const sum = (k: string) => num(mine.find((s) => s.kind === k)?._sum.amount ?? null);
-      return { ...view(e), income: sum('INCOME'), expense: sum('EXPENSE'), count: mine.reduce((n, s) => n + s._count._all, 0) };
+      return { ...view(e), income: sum('INCOME'), expense: sum('EXPENSE'), othersExpense: num(others.find((o) => o.eventId === e.id)?._sum.amount ?? null), count: mine.reduce((n, s) => n + s._count._all, 0) };
     });
   }
 
@@ -71,7 +97,104 @@ export class EventsService {
     return {
       ...view(e), income: totals.income, expense: totals.expense, net: totals.net, count: totals.count, categories,
       firstAt: days._min.occurredAt, lastAt: days._max.occurredAt,
+      ...(await this.sharing(ownerId, id, totals.expense)),
     };
+  }
+
+  /**
+   * Equal split of everything spent on the event (the owner's tagged expenses + what others paid).
+   * balance > 0: they paid more than their share (should get back); < 0: they owe.
+   * Remainder paise are handed out one each so the shares add up exactly.
+   */
+  private async sharing(ownerId: string, eventId: string, myExpense: number) {
+    const [links, expenses] = await Promise.all([
+      this.prisma.eventPerson.findMany({ where: { eventId }, include: { person: true } }),
+      this.prisma.eventExpense.findMany({ where: { eventId, ownerId }, include: { person: true }, orderBy: [{ occurredAt: 'desc' }, { createdAt: 'desc' }] }),
+    ]);
+    const spentBy = new Map<string, number>();
+    for (const x of expenses) spentBy.set(x.personId, (spentBy.get(x.personId) ?? 0) + num(x.amount));
+    const people = links.map((l) => l.person).sort((a, b) => a.name.localeCompare(b.name));
+    const total = myExpense + [...spentBy.values()].reduce((a, b) => a + b, 0);
+    const n = people.length + 1;
+    const members = [{ personId: null as string | null, name: 'You', spent: myExpense }, ...people.map((p) => ({ personId: p.id as string | null, name: p.name, spent: spentBy.get(p.id) ?? 0 }))]
+      .map((m, i) => {
+        const share = Math.floor(total / n) + (i < total % n ? 1 : 0);
+        return { ...m, share, balance: m.spent - share };
+      });
+    return {
+      totalCost: total, othersExpense: total - myExpense, members,
+      expenses: expenses.map((x) => ({
+        id: x.id, title: x.title, amount: num(x.amount), notes: x.notes, occurredAt: x.occurredAt,
+        person: { id: x.person.id, name: x.person.name },
+      })),
+    };
+  }
+
+  /** Finds the person by id or name (creating them), and makes sure they take part in the event. */
+  private async resolvePerson(ownerId: string, eventId: string, ref: { personId?: string; name?: string }) {
+    let person = ref.personId ? await this.prisma.person.findFirst({ where: { id: ref.personId, ownerId } }) : null;
+    if (ref.personId && !person) throw new NotFoundException('Person not found');
+    if (!person) {
+      const name = ref.name?.trim();
+      if (!name) throw new BadRequestException('Pick a person or enter a name');
+      person = (await this.prisma.person.findFirst({ where: { ownerId, name } })) ?? (await this.prisma.person.create({ data: { ownerId, name } }));
+    }
+    await this.prisma.eventPerson.upsert({
+      where: { eventId_personId: { eventId, personId: person.id } }, update: {}, create: { eventId, personId: person.id },
+    });
+    return person;
+  }
+
+  async people(ownerId: string) {
+    const rows = await this.prisma.person.findMany({ where: { ownerId }, orderBy: { name: 'asc' } });
+    return rows.map((p) => ({ id: p.id, name: p.name }));
+  }
+
+  async addPerson(ownerId: string, eventId: string, dto: AddPersonDto) {
+    await this.owned(ownerId, eventId);
+    const p = await this.resolvePerson(ownerId, eventId, dto);
+    return { id: p.id, name: p.name };
+  }
+
+  /** Takes someone out of the event; only possible while they have no expenses in it. */
+  async removePerson(ownerId: string, eventId: string, personId: string) {
+    await this.owned(ownerId, eventId);
+    if (await this.prisma.eventExpense.findFirst({ where: { eventId, personId } })) {
+      throw new ConflictException('Delete their expenses first');
+    }
+    await this.prisma.eventPerson.deleteMany({ where: { eventId, personId } });
+  }
+
+  async addExpense(ownerId: string, eventId: string, dto: CreateExpenseDto) {
+    await this.owned(ownerId, eventId);
+    const person = await this.resolvePerson(ownerId, eventId, { personId: dto.personId, name: dto.personName });
+    const occurredAt = dto.occurredAt ? new Date(dto.occurredAt) : new Date();
+    assertSaneInstant(occurredAt);
+    const x = await this.prisma.eventExpense.create({
+      data: { ownerId, eventId, personId: person.id, title: dto.title.trim(), amount: big(dto.amount), occurredAt, notes: dto.notes || null },
+    });
+    return { id: x.id };
+  }
+
+  async updateExpense(ownerId: string, eventId: string, id: string, dto: UpdateExpenseDto) {
+    const x = await this.prisma.eventExpense.findFirst({ where: { id, eventId, ownerId } });
+    if (!x) throw new NotFoundException('Expense not found');
+    const occurredAt = dto.occurredAt ? new Date(dto.occurredAt) : undefined;
+    if (occurredAt) assertSaneInstant(occurredAt);
+    const personId = dto.personId ? (await this.resolvePerson(ownerId, eventId, { personId: dto.personId })).id : undefined;
+    await this.prisma.eventExpense.update({
+      where: { id },
+      data: {
+        title: dto.title?.trim(), amount: dto.amount === undefined ? undefined : big(dto.amount), personId, occurredAt,
+        notes: dto.notes === undefined ? undefined : dto.notes || null,
+      },
+    });
+  }
+
+  async removeExpense(ownerId: string, eventId: string, id: string) {
+    const x = await this.prisma.eventExpense.findFirst({ where: { id, eventId, ownerId }, select: { id: true } });
+    if (!x) throw new NotFoundException('Expense not found');
+    await this.prisma.eventExpense.delete({ where: { id } });
   }
 
   async create(ownerId: string, dto: CreateEventDto) {

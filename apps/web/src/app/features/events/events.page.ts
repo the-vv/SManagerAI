@@ -27,7 +27,8 @@ import { MoneyPipe } from '../../shared/pipes/format.pipes';
               @if (!e.isActive) { <span class="chip">Closed</span> }
             </div>
             <div class="num mt-3 text-2xl font-semibold text-expense">{{ e.expense | money }}</div>
-            <div class="text-xs text-muted">spent · {{ e.count }} transaction{{ e.count === 1 ? '' : 's' }}@if (e.income > 0) { · {{ e.income | money }} income }</div>
+            <div class="text-xs text-muted">spent · {{ e.count }} transaction{{ e.count === 1 ? '' : 's' }}@if (e.income > 0) { · {{ e.income | money }} income }
+            @if (e.othersExpense > 0) { <div class="text-xs text-muted">+ {{ e.othersExpense | money }} paid by others</div> }
             @if (e.budget) {
               <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-2" role="progressbar" [attr.aria-valuenow]="pct(e.expense, e.budget)" aria-valuemin="0" aria-valuemax="100" aria-label="Budget used">
                 <div class="h-full rounded-full" [style.width.%]="pct(e.expense, e.budget)" [style.background]="e.expense > e.budget ? 'var(--expense)' : 'var(--accent)'"></div>

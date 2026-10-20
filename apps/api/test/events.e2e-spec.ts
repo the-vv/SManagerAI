@@ -54,3 +54,66 @@ describe('events (trip tracking)', () => {
     expect(r.status).toBe(404);
   });
 });
+
+describe('event people and shared expenses', () => {
+  let ctx: TestCtx;
+  let a: Agent;
+  let other: Agent;
+  let accountId: string;
+
+  beforeAll(async () => {
+    ctx = await createApp();
+    a = await signUp(ctx.app, 'pa'); other = await signUp(ctx.app, 'pb');
+    accountId = (await makeAccount(a, { openingBalance: rs(10000) })).id;
+  });
+  afterAll(async () => { await ctx.close(); });
+
+  it("records other people's expenses without touching accounts, and splits the total equally", async () => {
+    const ev = (await a.post('/api/events').send({ name: 'Goa' })).body;
+    await a.post('/api/transactions').send({ title: 'Hotel', amount: rs(900), kind: 'EXPENSE', accountId, eventId: ev.id, occurredAt: '2026-03-10T10:00:00Z' });
+    const before = (await a.get(`/api/accounts/${accountId}`)).body.balance;
+
+    // inline: a new person is created by name; the same name later is reused
+    expect((await a.post(`/api/events/${ev.id}/expenses`).send({ title: 'Dinner', amount: rs(600), personName: 'Ravi' })).status).toBe(201);
+    expect((await a.post(`/api/events/${ev.id}/expenses`).send({ title: 'Taxi', amount: rs(300), personName: 'Ravi' })).status).toBe(201);
+    const meera = (await a.post(`/api/events/${ev.id}/people`).send({ name: 'Meera' })).body;
+    expect((await a.get('/api/people')).body.map((p: { name: string }) => p.name)).toEqual(['Meera', 'Ravi']);
+
+    expect((await a.get(`/api/accounts/${accountId}`)).body.balance).toBe(before); // untouched
+    expect((await a.get('/api/transactions')).body.total).toBe(1);
+
+    const d = (await a.get(`/api/events/${ev.id}`)).body;
+    expect(d).toMatchObject({ expense: rs(900), othersExpense: rs(900), totalCost: rs(1800) });
+    expect(d.members.map((m: { name: string }) => m.name)).toEqual(['You', 'Meera', 'Ravi']);
+    const by = Object.fromEntries(d.members.map((m: { name: string }) => [m.name, m]));
+    expect(by.You).toMatchObject({ spent: rs(900), share: rs(600), balance: rs(300) });
+    expect(by.Meera).toMatchObject({ spent: 0, share: rs(600), balance: -rs(600) });
+    expect(by.Ravi).toMatchObject({ spent: rs(900), share: rs(600), balance: rs(300) });
+    expect(d.expenses).toHaveLength(2);
+
+    // reuse in a second event
+    const ev2 = (await a.post('/api/events').send({ name: 'Ooty' })).body;
+    await a.post(`/api/events/${ev2.id}/expenses`).send({ title: 'Lunch', amount: rs(100), personId: meera.id });
+    expect((await a.get('/api/people')).body).toHaveLength(2);
+    expect((await a.get('/api/events')).body.find((e: { id: string }) => e.id === ev2.id).othersExpense).toBe(rs(100));
+
+    // edit / delete; a person with expenses cannot be removed
+    expect((await a.delete(`/api/events/${ev2.id}/people/${meera.id}`)).status).toBe(409);
+    const x = d.expenses[0];
+    expect((await a.patch(`/api/events/${ev.id}/expenses/${x.id}`).send({ amount: rs(1) })).status).toBe(204);
+    expect((await a.delete(`/api/events/${ev.id}/expenses/${x.id}`)).status).toBe(204);
+    expect((await a.get(`/api/events/${ev.id}`)).body.expenses).toHaveLength(1);
+  });
+
+  it('keeps shares exact when the total does not divide evenly and rejects other users people', async () => {
+    const ev = (await a.post('/api/events').send({ name: 'Odd' })).body;
+    await a.post(`/api/events/${ev.id}/expenses`).send({ title: 'x', amount: 100, personName: 'P1' });
+    await a.post(`/api/events/${ev.id}/people`).send({ name: 'P2' });
+    const d = (await a.get(`/api/events/${ev.id}`)).body;
+    expect(d.members.reduce((s: number, m: { share: number }) => s + m.share, 0)).toBe(100);
+    const oe = (await other.post('/api/events').send({ name: 'Theirs' })).body;
+    const personId = (await a.get('/api/people')).body[0].id;
+    const bad = await other.post(`/api/events/${oe.id}/expenses`).send({ title: 'x', amount: 100, personId });
+    expect(bad.status).toBe(404);
+  });
+});
