@@ -27,11 +27,11 @@ import { TransactionListComponent } from '../transactions/transaction-list.compo
       <header class="mb-5">
         <h1 class="m-0 text-2xl font-semibold tracking-tight break-words">{{ e.name }}</h1>
         <p class="m-0 mt-1 text-sm text-muted">{{ subtitle(e) }}</p>
-        <div class="mt-3 flex flex-wrap items-center gap-2">
-          <button type="button" class="btn btn-primary whitespace-nowrap" (click)="add()" [disabled]="!e.isActive"><tui-icon icon="@tui.plus" /> Add<span class="hidden sm:inline">&nbsp;transaction</span></button>
+        <div class="mt-3 flex items-center gap-2">
+          <button type="button" class="btn btn-primary whitespace-nowrap !px-3 sm:!px-4" (click)="add()" [disabled]="!e.isActive"><tui-icon icon="@tui.plus" /> Add<span class="hidden sm:inline">&nbsp;transaction</span></button>
           <button type="button" class="btn" (click)="edit(e)">Edit</button>
           <button type="button" class="btn" (click)="toggle(e)">{{ e.isActive ? 'Close' : 'Reopen' }}</button>
-          <button type="button" class="btn-ghost" aria-label="Delete event" (click)="remove(e)"><tui-icon icon="@tui.trash" /></button>
+          <button type="button" class="btn-ghost ml-auto shrink-0" aria-label="Delete event" (click)="remove(e)"><tui-icon icon="@tui.trash" /></button>
         </div>
       </header>
 
@@ -70,7 +70,7 @@ import { TransactionListComponent } from '../transactions/transaction-list.compo
       <section class="card card-pad mb-4" aria-label="People and shares">
         <div class="mb-1 flex items-center justify-between gap-3">
           <h2 class="m-0 text-base font-semibold">People &amp; shares</h2>
-          <button type="button" class="btn btn-sm" (click)="addExpense()"><tui-icon icon="@tui.plus" /> Expense by someone else</button>
+          <button type="button" class="btn btn-sm shrink-0 whitespace-nowrap" (click)="addExpense()"><tui-icon icon="@tui.plus" /> <span class="sm:hidden">Add expense</span><span class="hidden sm:inline">Expense by someone else</span></button>
         </div>
         <p class="m-0 mb-3 text-sm text-muted">
           Total cost <span class="num font-medium text-fg">{{ e.totalCost | money }}</span> (yours plus what others paid), split equally between {{ e.members.length }}.
