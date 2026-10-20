@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, input, signal, effect } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { TuiIcon, tuiDialog } from '@taiga-ui/core';
+import { TuiSwitch } from '@taiga-ui/kit';
 import { firstValueFrom } from 'rxjs';
 import { ApiClient } from '../../core/api/api.client';
 import { Dialogs } from '../../core/services/dialogs.service';
@@ -10,12 +11,13 @@ import { ConfirmService } from '../../shared/components/confirm.service';
 import { EmptyStateComponent, PageHeaderComponent } from '../../shared/components/ui.components';
 import { EventExpense, Person, TrackEventDetail, Transaction, TransactionPage } from '../../shared/models/api.models';
 import { MoneyPipe } from '../../shared/pipes/format.pipes';
+import { AuthService } from '../../core/auth/auth.service';
 import { EventExpenseDialog } from './event-expense.dialog';
 import { TransactionListComponent } from '../transactions/transaction-list.component';
 
 @Component({
   selector: 'sm-event-detail-page',
-  imports: [PageHeaderComponent, EmptyStateComponent, TransactionListComponent, TuiIcon, RouterLink, MoneyPipe],
+  imports: [PageHeaderComponent, EmptyStateComponent, TransactionListComponent, TuiIcon, TuiSwitch, RouterLink, MoneyPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <a routerLink="/events" class="mb-2 inline-flex items-center gap-1 text-sm text-muted no-underline"><tui-icon icon="@tui.chevron-left" /> All events</a>
@@ -36,6 +38,28 @@ import { TransactionListComponent } from '../transactions/transaction-list.compo
           <div class="num text-xl font-semibold" [class.text-expense]="!!e.budget && e.expense > e.budget">{{ e.budget ? ((e.expense > e.budget ? e.expense - e.budget : e.budget - e.expense) | money) : 'Not set' }}</div>
         </div>
       </div>
+
+      <section class="card card-pad mb-4" aria-label="Sharing">
+        <h2 class="m-0 mb-1 text-base font-semibold">Share this event</h2>
+        <p class="m-0 mb-3 text-sm text-muted">Anyone with the link can see the shares and who owes what. They never see your accounts or transactions.</p>
+        <label class="flex cursor-pointer items-center justify-between gap-3 text-sm font-medium">
+          Public link
+          <input type="checkbox" tuiSwitch [checked]="e.shareEnabled" (change)="setSharing({ enabled: $any($event.target).checked })" />
+        </label>
+        @if (e.shareEnabled) {
+          @if (shareLink(e); as l) {
+            <div class="mt-3 flex items-center gap-2">
+              <input class="input !min-h-10 min-w-0 flex-1 !text-xs" readonly aria-label="Public link" [value]="l" (focus)="$any($event.target).select()" />
+              <button type="button" class="btn btn-sm" (click)="copy(l)"><tui-icon icon="@tui.copy" /> Copy</button>
+            </div>
+          }
+          <label class="mt-3 flex cursor-pointer items-center justify-between gap-3 text-sm font-medium">
+            <span>Let people with the link add their own expenses<span class="block text-xs font-normal text-muted">They are added as participants and shown with a “link” tag.</span></span>
+            <input type="checkbox" tuiSwitch [checked]="e.allowGuestExpenses" (change)="setSharing({ allowGuestExpenses: $any($event.target).checked })" />
+          </label>
+          <button type="button" class="btn btn-sm mt-3" (click)="rotate()">Create a new link (old one stops working)</button>
+        }
+      </section>
 
       <section class="card card-pad mb-4" aria-label="People and shares">
         <div class="mb-1 flex items-center justify-between gap-3">
@@ -75,7 +99,7 @@ import { TransactionListComponent } from '../transactions/transaction-list.compo
             @for (x of e.expenses; track x.id) {
               <li>
                 <button type="button" class="flex w-full cursor-pointer items-center gap-3 border-0 border-b border-line bg-transparent px-1 py-2.5 text-left text-fg" (click)="editExpense(x)">
-                  <span class="min-w-0 flex-1"><span class="block truncate text-sm font-medium">{{ x.title }}</span><span class="text-xs text-muted">{{ x.person.name }}</span></span>
+                  <span class="min-w-0 flex-1"><span class="block truncate text-sm font-medium">{{ x.title }}</span><span class="text-xs text-muted">{{ x.person.name }}@if (x.addedByGuest) { · via link }</span></span>
                   <span class="num text-sm font-semibold">{{ x.amount | money }}</span>
                 </button>
               </li>
@@ -122,6 +146,7 @@ export class EventDetailPage {
   private readonly router = inject(Router);
   private readonly toast = inject(Toast);
   private readonly confirm = inject(ConfirmService);
+  private readonly auth = inject(AuthService);
   protected readonly dialogs = inject(Dialogs);
 
   protected readonly ev = signal<TrackEventDetail | null>(null);
@@ -146,6 +171,25 @@ export class EventDetailPage {
       next: (p) => { this.txs.set(this.page === 1 ? p.items : [...this.txs(), ...p.items]); this.total.set(p.total); },
       error: (e) => this.toast.error(e),
     });
+  }
+
+  /** The Android app has no public web address, so it cannot build a link. */
+  protected shareLink(e: TrackEventDetail): string | null {
+    return this.auth.isNative || !e.shareToken ? null : `${window.location.origin}/e/${encodeURIComponent(e.shareToken)}`;
+  }
+
+  protected setSharing(body: { enabled?: boolean; allowGuestExpenses?: boolean; regenerate?: boolean }): void {
+    this.api.patch(`/events/${this.id()}/sharing`, body).subscribe({ next: this.reload, error: (e) => { this.toast.error(e); this.reload(); } });
+  }
+
+  protected async rotate(): Promise<void> {
+    if (!(await this.confirm.ask({ title: 'Create a new link?', message: 'The current link will stop working for everyone who has it.', confirmLabel: 'Create new link' }))) return;
+    this.setSharing({ regenerate: true });
+  }
+
+  protected async copy(text: string): Promise<void> {
+    try { await navigator.clipboard.writeText(text); this.toast.success('Link copied'); }
+    catch { this.toast.info('Select the link and copy it manually.'); }
   }
 
   protected hasExpenses(personId: string): boolean { return !!this.ev()?.expenses.some((x) => x.person.id === personId); }

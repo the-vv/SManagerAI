@@ -10,6 +10,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/auth.page').then((m) => m.AuthPage),
   },
   {
+    path: 'e/:token',
+    title: 'Shared event · SManager AI',
+    loadComponent: () => import('./features/events/public-event.page').then((m) => m.PublicEventPage),
+  },
+  {
     path: '',
     component: ShellComponent,
     canActivate: [authGuard],

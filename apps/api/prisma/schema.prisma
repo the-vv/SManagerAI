@@ -253,6 +253,9 @@ model Event {
   endDate   String?
   budget    BigInt? // minor units; optional spending target
   isActive  Boolean   @default(true)
+  shareToken        String?  @unique // secret in the public link; kept while sharing is switched off
+  shareEnabled      Boolean  @default(false)
+  allowGuestExpenses Boolean @default(false) // anyone with the link may add their own expenses
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -299,6 +302,7 @@ model EventExpense {
   amount     BigInt // > 0, minor units
   occurredAt DateTime
   notes      String?
+  addedByGuest Boolean @default(false) // added through the public link
   createdAt  DateTime @default(now())
 
   event  Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)

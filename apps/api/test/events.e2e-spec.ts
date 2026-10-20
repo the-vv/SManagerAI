@@ -1,3 +1,4 @@
+import request from 'supertest';
 import { Agent, TestCtx, createApp, makeAccount, rs, signUp } from './utils.js';
 
 describe('events (trip tracking)', () => {
@@ -115,5 +116,67 @@ describe('event people and shared expenses', () => {
     const personId = (await a.get('/api/people')).body[0].id;
     const bad = await other.post(`/api/events/${oe.id}/expenses`).send({ title: 'x', amount: 100, personId });
     expect(bad.status).toBe(404);
+  });
+});
+
+describe('public event link', () => {
+  let ctx: TestCtx;
+  let a: Agent;
+  let anon: Agent;
+  let evId: string;
+
+  beforeAll(async () => {
+    ctx = await createApp();
+    a = await signUp(ctx.app, 'sa');
+    const acc = (await makeAccount(a)).id;
+    evId = (await a.post('/api/events').send({ name: 'Shared trip' })).body.id;
+    await a.post('/api/transactions').send({ title: 'Hotel', amount: rs(1000), kind: 'EXPENSE', accountId: acc, eventId: evId });
+    anon = request(ctx.app.getHttpServer()) as unknown as Agent;
+  });
+  afterAll(async () => { await ctx.close(); });
+
+  it('is closed by default, opens with a token, hides private data and can be switched off or rotated', async () => {
+    const ev = (await a.get(`/api/events/${evId}`)).body;
+    expect(ev).toMatchObject({ shareEnabled: false, shareToken: null });
+
+    const on = (await a.patch(`/api/events/${evId}/sharing`).send({ enabled: true })).body;
+    expect(on.shareEnabled).toBe(true);
+    expect(on.shareToken).toMatch(/^[\w-]{20,}$/);
+
+    expect((await anon.get('/api/public/events/nope')).status).toBe(404);
+    const pub = (await anon.get(`/api/public/events/${on.shareToken}`)).body;
+    expect(pub).toMatchObject({ name: 'Shared trip', totalCost: rs(1000), canAddExpenses: false });
+    expect(pub.members[0]).toMatchObject({ isOwner: true, spent: rs(1000) });
+    expect(JSON.stringify(pub)).not.toMatch(/accountId|Hotel/); // no owner transactions
+
+    // guests cannot add until allowed
+    const body = { name: 'Asha', title: 'Snacks', amount: rs(200) };
+    expect((await anon.post(`/api/public/events/${on.shareToken}/expenses`).send(body)).status).toBe(409);
+    await a.patch(`/api/events/${evId}/sharing`).send({ allowGuestExpenses: true });
+    expect((await anon.post(`/api/public/events/${on.shareToken}/expenses`).send(body)).status).toBe(204);
+    expect((await anon.post(`/api/public/events/${on.shareToken}/expenses`).send({ ...body, amount: 0 })).status).toBe(400);
+
+    const after = (await anon.get(`/api/public/events/${on.shareToken}`)).body;
+    expect(after.members.map((m: { name: string }) => m.name)).toEqual(['sa', 'Asha']);
+    expect(after.totalCost).toBe(rs(1200));
+    const detail = (await a.get(`/api/events/${evId}`)).body;
+    expect(detail.expenses[0]).toMatchObject({ title: 'Snacks', addedByGuest: true });
+    expect((await a.get('/api/transactions')).body.total).toBe(1); // owner's ledger untouched
+
+    // rotating invalidates the old link; switching off closes it and guest adding
+    const rotated = (await a.patch(`/api/events/${evId}/sharing`).send({ regenerate: true })).body.shareToken;
+    expect(rotated).not.toBe(on.shareToken);
+    expect((await anon.get(`/api/public/events/${on.shareToken}`)).status).toBe(404);
+    await a.patch(`/api/events/${evId}/sharing`).send({ enabled: false });
+    expect((await anon.get(`/api/public/events/${rotated}`)).status).toBe(404);
+    const reopened = (await a.patch(`/api/events/${evId}/sharing`).send({ enabled: true })).body;
+    expect(reopened).toMatchObject({ shareToken: rotated, allowGuestExpenses: false });
+  });
+
+  it('refuses guest expenses on a closed event', async () => {
+    const tok = (await a.patch(`/api/events/${evId}/sharing`).send({ allowGuestExpenses: true })).body.shareToken;
+    await a.patch(`/api/events/${evId}`).send({ isActive: false });
+    expect((await anon.get(`/api/public/events/${tok}`)).body.canAddExpenses).toBe(false);
+    expect((await anon.post(`/api/public/events/${tok}/expenses`).send({ name: 'X', title: 'y', amount: 100 })).status).toBe(409);
   });
 });

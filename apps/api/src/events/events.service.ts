@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsInt, IsISO8601, IsNotEmpty, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
@@ -38,6 +39,20 @@ export class UpdateExpenseDto {
   @IsOptional() @Transform(trim) @IsString() @MaxLength(500) notes?: string | null;
 }
 
+export class UpdateSharingDto {
+  @IsOptional() @IsBoolean() enabled?: boolean;
+  @IsOptional() @IsBoolean() allowGuestExpenses?: boolean;
+  /** true: invalidate the old link and make a new one */
+  @IsOptional() @IsBoolean() regenerate?: boolean;
+}
+
+export class GuestExpenseDto {
+  @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(60) name: string;
+  @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(120) title: string;
+  @IsInt() @Min(1) @Max(MAX_AMOUNT_MINOR) amount: number;
+  @IsOptional() @IsISO8601() occurredAt?: string;
+}
+
 export class AddPersonDto {
   @IsOptional() @IsString() personId?: string;
   @IsOptional() @Transform(trim) @IsString() @MaxLength(60) name?: string;
@@ -53,6 +68,7 @@ export class UpdateEventDto {
 }
 
 const view = (e: Event) => ({
+  shareEnabled: e.shareEnabled, allowGuestExpenses: e.allowGuestExpenses, shareToken: e.shareEnabled ? e.shareToken : null,
   id: e.id, name: e.name, notes: e.notes, startDate: e.startDate, endDate: e.endDate,
   budget: e.budget === null ? null : num(e.budget), isActive: e.isActive,
 });
@@ -124,7 +140,7 @@ export class EventsService {
     return {
       totalCost: total, othersExpense: total - myExpense, members,
       expenses: expenses.map((x) => ({
-        id: x.id, title: x.title, amount: num(x.amount), notes: x.notes, occurredAt: x.occurredAt,
+        id: x.id, title: x.title, amount: num(x.amount), notes: x.notes, occurredAt: x.occurredAt, addedByGuest: x.addedByGuest,
         person: { id: x.person.id, name: x.person.name },
       })),
     };
@@ -143,6 +159,49 @@ export class EventsService {
       where: { eventId_personId: { eventId, personId: person.id } }, update: {}, create: { eventId, personId: person.id },
     });
     return person;
+  }
+
+  /** Switch the public link and guest expenses on / off. The token is created on first use. */
+  async updateSharing(ownerId: string, id: string, dto: UpdateSharingDto) {
+    const e = await this.owned(ownerId, id);
+    const token = dto.regenerate || !e.shareToken ? randomBytes(24).toString('base64url') : e.shareToken;
+    const enabled = dto.enabled ?? e.shareEnabled;
+    const updated = await this.prisma.event.update({
+      where: { id },
+      data: { shareToken: token, shareEnabled: enabled, allowGuestExpenses: enabled ? (dto.allowGuestExpenses ?? e.allowGuestExpenses) : false },
+    });
+    return view(updated);
+  }
+
+  private async bySharedToken(token: string) {
+    const e = await this.prisma.event.findFirst({ where: { shareToken: token, shareEnabled: true }, include: { owner: { select: { name: true } } } });
+    if (!e) throw new NotFoundException('This link is not available');
+    return e;
+  }
+
+  /** What anyone with the link sees: names, shares and the others' expenses - never the owner's accounts or transactions. */
+  async publicView(token: string) {
+    const e = await this.bySharedToken(token);
+    const mine = await this.ledger.totals({ ownerId: e.ownerId, eventId: e.id });
+    const s = await this.sharing(e.ownerId, e.id, mine.expense);
+    return {
+      name: e.name, notes: e.notes, startDate: e.startDate, endDate: e.endDate, isActive: e.isActive,
+      canAddExpenses: e.allowGuestExpenses && e.isActive, ownerName: e.owner.name,
+      totalCost: s.totalCost, members: s.members.map((m) => ({ ...m, name: m.personId === null ? e.owner.name : m.name, isOwner: m.personId === null })),
+      expenses: s.expenses.map((x) => ({ title: x.title, amount: x.amount, occurredAt: x.occurredAt, personName: x.person.name })),
+    };
+  }
+
+  async addGuestExpense(token: string, dto: GuestExpenseDto) {
+    const e = await this.bySharedToken(token);
+    if (!e.allowGuestExpenses || !e.isActive) throw new ConflictException('Adding expenses is switched off for this event');
+    if ((await this.prisma.eventExpense.count({ where: { eventId: e.id } })) >= 500) throw new ConflictException('This event has reached its expense limit');
+    const person = await this.resolvePerson(e.ownerId, e.id, { name: dto.name });
+    const occurredAt = dto.occurredAt ? new Date(dto.occurredAt) : new Date();
+    assertSaneInstant(occurredAt);
+    await this.prisma.eventExpense.create({
+      data: { ownerId: e.ownerId, eventId: e.id, personId: person.id, title: dto.title.trim(), amount: big(dto.amount), occurredAt, addedByGuest: true },
+    });
   }
 
   async people(ownerId: string) {
