@@ -9,6 +9,7 @@ export interface TxFilter {
   accountId?: string;
   kind?: 'INCOME' | 'EXPENSE' | 'TRANSFER';
   categoryId?: string;
+  eventId?: string;
   origin?: 'MANUAL' | 'AUTOMATION';
   q?: string;
 }
@@ -40,6 +41,7 @@ export function buildTxWhere(ownerId: string, f: TxFilter, tz: string): Prisma.T
   if (f.kind === 'TRANSFER') and.push({ kind: { in: ['TRANSFER_IN', 'TRANSFER_OUT'] } });
   else if (f.kind) and.push({ kind: f.kind });
   if (f.categoryId) and.push(f.categoryId === 'none' ? { categoryId: null } : { categoryId: f.categoryId });
+  if (f.eventId) and.push({ eventId: f.eventId });
   if (f.origin === 'MANUAL') and.push({ source: 'MANUAL' });
   if (f.origin === 'AUTOMATION') and.push({ source: { in: ['AUTOMATION_AUTO', 'AUTOMATION_CONFIRMED'] } });
   if (f.q) and.push({ OR: [{ title: { contains: f.q } }, { notes: { contains: f.q } }] });

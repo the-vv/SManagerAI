@@ -43,6 +43,7 @@ interface Group { key: string; label: string; items: Transaction[]; income: numb
                   @if (t.category) { <span>{{ t.category.name }}</span> }
                   @else if (!t.transfer) { <span class="text-faint">Uncategorized</span> }
                   @if (t.transfer) { <span>Transfer</span> }
+                  @if (t.event) { <span class="chip !py-0"><tui-icon icon="@tui.map-pin" [style.font-size.px]="12" /> {{ t.event.name }}</span> }
                   @if (showAccount()) { <span>· {{ t.account.name }}</span> }
                   <span>· {{ grouped() ? (t.occurredAt | smTime) : (t.occurredAt | smDate) }}</span>
                   @if (t.source === 'AUTOMATION_AUTO') { <span class="chip !py-0"><tui-icon icon="@tui.repeat" [style.font-size.px]="12" /> Auto</span> }

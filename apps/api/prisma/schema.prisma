@@ -103,6 +103,7 @@ model User {
   automations Automation[]
   executions  AutomationExecution[]
   aiJobs      AiJob[]
+  events      Event[]
   invitesCreated Invite[]
 }
 
@@ -219,6 +220,7 @@ model Transaction {
   transferId  String?
   automationId String?
   occurrenceDate String? // 'YYYY-MM-DD' of the automation occurrence that produced it
+  eventId     String?
   aiJobId     String?           @unique // AI Smart Entry job this was saved from; makes a retried save idempotent
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
@@ -228,6 +230,7 @@ model Transaction {
   category   Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   transfer   Transfer?   @relation(fields: [transferId], references: [id], onDelete: Cascade)
   automation Automation? @relation(fields: [automationId], references: [id], onDelete: SetNull)
+  event      Event?      @relation(fields: [eventId], references: [id], onDelete: SetNull)
   execution  AutomationExecution?
 
   // A given automation occurrence can produce at most one transaction.
@@ -236,6 +239,26 @@ model Transaction {
   @@index([ownerId, accountId, occurredAt])
   @@index([ownerId, categoryId, occurredAt])
   @@index([transferId])
+  @@index([ownerId, eventId])
+}
+
+/// A named bucket ("Ooty trip") that transactions can be tagged with, to track its spending on its own.
+model Event {
+  id        String    @id @default(cuid())
+  ownerId   String
+  name      String
+  notes     String?
+  startDate String? // 'YYYY-MM-DD', informational
+  endDate   String?
+  budget    BigInt? // minor units; optional spending target
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@unique([ownerId, name])
 }
 
 model BalanceAdjustment {

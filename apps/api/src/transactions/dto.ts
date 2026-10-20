@@ -30,6 +30,8 @@ export class CreateTransactionDto {
   amount: number;
   @IsIn(['INCOME', 'EXPENSE']) kind: 'INCOME' | 'EXPENSE';
   @IsOptional() @IsString() categoryId?: string | null;
+  /** Event (e.g. a trip) this belongs to; null removes the tag. */
+  @IsOptional() @IsString() eventId?: string | null;
   @IsOptional() @IsString() accountId?: string;
   /** ISO-8601 instant. Defaults to now. */
   @IsOptional() @IsISO8601() occurredAt?: string;
@@ -44,6 +46,8 @@ export class UpdateTransactionDto {
   @IsOptional() @IsInt() @Min(1) @Max(MAX_AMOUNT_MINOR) amount?: number;
   @IsOptional() @IsIn(['INCOME', 'EXPENSE']) kind?: 'INCOME' | 'EXPENSE';
   @IsOptional() @IsString() categoryId?: string | null;
+  /** Event (e.g. a trip) this belongs to; null removes the tag. */
+  @IsOptional() @IsString() eventId?: string | null;
   @IsOptional() @IsString() accountId?: string;
   @IsOptional() @IsISO8601() occurredAt?: string;
   @IsOptional() @Transform(trim) @IsString() @MaxLength(1000) notes?: string | null;
@@ -58,6 +62,7 @@ export class TransactionQuery extends PageQuery {
   @IsOptional() @IsString() accountId?: string;
   @IsOptional() @IsIn(['INCOME', 'EXPENSE', 'TRANSFER']) kind?: 'INCOME' | 'EXPENSE' | 'TRANSFER';
   @IsOptional() @IsString() categoryId?: string;
+  @IsOptional() @IsString() eventId?: string;
   /** 'none' = uncategorized */
   @IsOptional() @IsIn(['MANUAL', 'AUTOMATION']) origin?: 'MANUAL' | 'AUTOMATION';
   @IsOptional() @Transform(trim) @IsString() @MaxLength(100) q?: string;
@@ -72,6 +77,7 @@ export class ExportQuery {
   @IsOptional() @IsString() accountId?: string;
   @IsOptional() @IsIn(['INCOME', 'EXPENSE', 'TRANSFER']) kind?: 'INCOME' | 'EXPENSE' | 'TRANSFER';
   @IsOptional() @IsString() categoryId?: string;
+  @IsOptional() @IsString() eventId?: string;
   @IsOptional() @IsIn(['MANUAL', 'AUTOMATION']) origin?: 'MANUAL' | 'AUTOMATION';
   @IsOptional() @Transform(trim) @IsString() @MaxLength(100) q?: string;
   @IsOptional() @IsIn(['date', 'amount', 'title']) sort?: 'date' | 'amount' | 'title';

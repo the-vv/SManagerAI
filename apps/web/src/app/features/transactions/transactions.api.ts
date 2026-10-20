@@ -4,12 +4,12 @@ import { ApiClient, Query } from '../../core/api/api.client';
 import { Frequency, IntervalUnit, AutomationMode, Transaction, TransactionPage } from '../../shared/models/api.models';
 
 export interface TxQuery extends Query {
-  month?: string; from?: string; to?: string; accountId?: string; kind?: string; categoryId?: string;
+  month?: string; from?: string; to?: string; accountId?: string; kind?: string; categoryId?: string; eventId?: string;
   origin?: string; q?: string; sort?: string; dir?: string; page?: number; pageSize?: number;
 }
 
 export interface TxInput {
-  title: string; amount: number; kind: 'INCOME' | 'EXPENSE'; categoryId?: string | null; accountId?: string;
+  title: string; amount: number; kind: 'INCOME' | 'EXPENSE'; categoryId?: string | null; eventId?: string | null; accountId?: string;
   occurredAt?: string; notes?: string | null; aiJobId?: string;
   automation?: { frequency: Frequency; customEvery?: number; customUnit?: IntervalUnit; endDate?: string; mode?: AutomationMode };
 }

@@ -6,6 +6,7 @@ import type { TransactionKind, TransactionSource } from '../generated/prisma/enu
 export interface NewTransaction {
   accountId: string;
   categoryId?: string | null;
+  eventId?: string | null;
   kind: 'INCOME' | 'EXPENSE';
   amount: number;
   title: string;
@@ -45,14 +46,19 @@ export class TransactionWriter {
     if (c.type !== kind) throw new ConflictException(`Category "${c.name}" is an ${c.type.toLowerCase()} category`);
   }
 
+  async assertEvent(db: Tx, ownerId: string, eventId: string) {
+    if (!(await db.event.findFirst({ where: { id: eventId, ownerId }, select: { id: true } }))) throw new NotFoundException('Event not found');
+  }
+
   async record(db: Tx, ownerId: string, n: NewTransaction) {
     if (!Number.isSafeInteger(n.amount) || n.amount <= 0) throw new BadRequestException('Amount must be greater than zero');
     assertSaneInstant(n.occurredAt);
     await this.assertAccountUsable(db, ownerId, n.accountId, n.occurredAt);
     if (n.categoryId) await this.assertCategory(db, ownerId, n.categoryId, n.kind);
+    if (n.eventId) await this.assertEvent(db, ownerId, n.eventId);
     return db.transaction.create({
       data: {
-        ownerId, accountId: n.accountId, categoryId: n.categoryId ?? null,
+        ownerId, accountId: n.accountId, categoryId: n.categoryId ?? null, eventId: n.eventId ?? null,
         kind: n.kind as TransactionKind, amount: big(n.amount), title: n.title.trim(),
         notes: n.notes || null, occurredAt: n.occurredAt, source: n.source ?? 'MANUAL',
         automationId: n.automationId ?? null, occurrenceDate: n.occurrenceDate ?? null, aiJobId: n.aiJobId ?? null,
